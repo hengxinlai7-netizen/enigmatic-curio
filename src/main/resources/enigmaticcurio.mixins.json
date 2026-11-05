@@ -14,11 +14,14 @@
     "BlessRingHelperMixin",
     "BlessRingTickMixin",
     "AddonThunderLightningMixin",
+    "AddonMiningMixin",
     "EnchantmentHelperSweepMixin",
     "FourthCurseMixin",
     "FourthCurseAddonMixin",
     "PearlApothEnchantMixin",
-    "PearlReforgeMixin"
+    "PearlReforgeMixin",
+    "AncientReforgeMixin",
+    "AugmentingSigilMixin"
   ],
   "client": [],
   "injectors": {

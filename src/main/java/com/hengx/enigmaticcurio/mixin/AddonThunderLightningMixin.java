@@ -30,7 +30,9 @@ import net.minecraftforge.event.entity.living.LivingHurtEvent;
  *
  * <p>于是:</p>
  * <ul>
- *   <li>HEAD 处先算好"这次命中是否允许给目标累积电荷"({@link ScrollHandler#decideCharge});</li>
+ *   <li>HEAD 处先算好"这次命中是否允许给目标累积电荷"({@link ScrollHandler#decideCharge});
+ *       该判定同时看<b>全局配置</b>({@code scaleEnabled} / {@code scaleLightning})和<b>这一件卷轴自己的 NBT</b>
+ *       {@code enigmaticcurio:thunderOff}(Ctrl + 左键 切换,见 {@link ItemToggleHandler});</li>
  *   <li>再用 {@code @Redirect} 包住方法体内**所有** {@code CompoundTag.putInt(String,int)} 调用,
  *       只对 key = {@code Electric} 且本次不允许时跳过写入(等价于"不累积"),
  *       其余 key 原样透传 —— 所以不依赖 ordinal,也不受其它模组注入顺序变化影响;</li>

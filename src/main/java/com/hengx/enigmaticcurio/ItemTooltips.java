@@ -17,7 +17,7 @@ import net.minecraftforge.registries.ForgeRegistries;
  *
  * <ul>
  *   <li>每行统一前缀 {@code · [饰品增强] }(英文 {@code · [Curio Enhance] }),一眼看出是本模组加的;</li>
- *   <li>只写"改了什么",不写原因/机制;关键操作(Ctrl+右键 等)单独一行,行尾带实时状态;</li>
+ *   <li>只写"改了什么",不写原因/机制;关键操作(Ctrl + 左键 等)单独一行,行尾带实时状态;</li>
  *   <li>全部走 {@code Component.translatable},文案在
  *       {@code assets/enigmaticcurio/lang/zh_cn.json} / {@code en_us.json} 里,
  *       代码里不写死任何中文字符串;</li>
@@ -44,6 +44,7 @@ public final class ItemTooltips {
     private static final String CURSED_RING = "enigmaticlegacy:cursed_ring";
     private static final String THUNDER_SCROLL = "enigmaticaddons:thunder_scroll";
     private static final String ENCHANTER_PEARL = "enigmaticlegacy:enchanter_pearl";
+    private static final String ANTIQUE_BAG = "enigmaticaddons:antique_bag";
 
     private ItemTooltips() {
     }
@@ -128,7 +129,9 @@ public final class ItemTooltips {
                         if (!CurioConfig.SCALE_RESTORE_SWEEP.get()) {
                             add(lines, body("thunder.effect", percent(CurioConfig.SCALE_ATTACK_DAMAGE_PERCENT.get())));
                         }
-                        add(lines, body("thunder.lightning", state(CurioConfig.SCALE_LIGHTNING.get())));
+                        // 逐件状态:全局雷击开关 且 这一件卷轴自己的开关,两者都开才算"开启"
+                        boolean on = CurioConfig.SCALE_LIGHTNING.get() && !ScrollHandler.isThunderOff(stack);
+                        add(lines, body("thunder.lightning", state(on)));
                     }
                 }
                 case ENCHANTER_PEARL -> {
@@ -140,6 +143,11 @@ public final class ItemTooltips {
                     }
                     if (CurioConfig.PEARL_FIX_ENCHANTING.get()) {
                         add(lines, line("pearl.condition"));
+                    }
+                }
+                case ANTIQUE_BAG -> {
+                    if (CurioConfig.BAG_TOOLTIP_ENABLED.get()) {
+                        addBagLines(lines, stack);
                     }
                 }
                 default -> {
@@ -156,6 +164,29 @@ public final class ItemTooltips {
     }
 
     // ------------------------------------------------------------------ 工具
+
+    /**
+     * 古旧书袋:把袋内"会生效的效果"逐条列出来。
+     *
+     * <p>数据来自书袋物品自己的 NBT({@link BagHudEffects#NBT_KEY}),由 {@link BagHudSync} 在服务端
+     * 算好后写进去(书袋内容原本只在服务端 capability 里,客户端拿不到,原版也没有同步它)。</p>
+     */
+    private static void addBagLines(List<Component> lines, ItemStack stack) {
+        if (!BagHudEffects.hasCache(stack)) {
+            // 服务器还没算过这一件(例如刚拿到手、或服务端没开这个功能)
+            add(lines, line("bag.unsynced"));
+            return;
+        }
+        List<BagHudEffects.Entry> entries = BagHudEffects.read(stack);
+        if (entries.isEmpty()) {
+            add(lines, line("bag.empty"));
+            return;
+        }
+        add(lines, line("bag.header"));
+        for (BagHudEffects.Entry entry : entries) {
+            add(lines, BagHudEffects.display(entry));
+        }
+    }
 
     /** 物品的注册 id(拿不到时 null)。 */
     private static String idOf(Item item) {

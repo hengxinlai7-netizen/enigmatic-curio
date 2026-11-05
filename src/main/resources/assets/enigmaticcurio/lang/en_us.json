@@ -4,24 +4,24 @@
   "tooltip.enigmaticcurio.state.off": "Currently: OFF",
 
   "tooltip.enigmaticcurio.revival_leaf.effect": "Its creative flight can be turned off (other Dragon Head bonuses remain)",
-  "tooltip.enigmaticcurio.revival_leaf.key": "Ctrl+Left Click (swing at air) to toggle · %s",
+  "tooltip.enigmaticcurio.revival_leaf.key": "Ctrl + Left Click to toggle · %s",
 
   "tooltip.enigmaticcurio.berserk.effect": "Health locked at %s (fake bar: damage is taken from it, healing is void)",
-  "tooltip.enigmaticcurio.berserk.key": "Sneak + Right Click to toggle · %s",
+  "tooltip.enigmaticcurio.berserk.key": "Ctrl + Left Click to toggle · %s",
 
   "tooltip.enigmaticcurio.books.locked": "Locked: right click will not open it",
-  "tooltip.enigmaticcurio.books.unlocked": "Ctrl+Right Click to lock it, then right click will not open it",
-  "tooltip.enigmaticcurio.books.key": "Ctrl+Right Click to toggle the lock",
+  "tooltip.enigmaticcurio.books.unlocked": "Ctrl + Left Click to lock it; a locked book will not open",
+  "tooltip.enigmaticcurio.books.key": "Ctrl + Left Click to toggle the lock",
 
   "tooltip.enigmaticcurio.adventure.effect": "Can now break blocks normally",
   "tooltip.enigmaticcurio.adventure.convert": "Turns into the Insignia of Despair when you die while holding it",
   "tooltip.enigmaticcurio.despair.effect": "Can now break blocks normally",
 
-  "tooltip.enigmaticcurio.engine.effect": "Its punishing lightning bolt is blocked",
+  "tooltip.enigmaticcurio.engine.effect": "Blocks its lightning punishment: no instant death, no gear destruction",
 
   "tooltip.enigmaticcurio.forger_gem.effect": "Two same-level enchanted books on an anvil → straight to max level",
 
-  "tooltip.enigmaticcurio.xp_scroll.effect": "Experience from a single source is capped at %s",
+  "tooltip.enigmaticcurio.xp_scroll.effect": "Experience from a single gain is capped at %s",
 
   "tooltip.enigmaticcurio.gluttony.effect": "Food level locked at 0, saturation locked at 1 (only saturation is consumed)",
 
@@ -33,16 +33,37 @@
   "tooltip.enigmaticcurio.cursed_ring.fourth": "With all three books in the Antique Bag, the fourth curse no longer reduces your damage",
 
   "tooltip.enigmaticcurio.thunder.effect": "Attack damage +%s%% (replaces the original sweeping bonus)",
-  "tooltip.enigmaticcurio.thunder.lightning": "Lightning · %s",
+  "tooltip.enigmaticcurio.thunder.lightning": "Ctrl + Left Click to toggle lightning · %s",
 
   "tooltip.enigmaticcurio.pearl.enchant": "Enchanting table (including Apotheosis): no lapis, plus one extra enchantment roll",
-  "tooltip.enigmaticcurio.pearl.reforge": "Apotheosis reforging table does not consume Sigils of Rebirth",
-  "tooltip.enigmaticcurio.pearl.condition": "The enchanting table effect requires being the Cursed One and wearing this pearl",
+  "tooltip.enigmaticcurio.pearl.reforge": "Reforging tables (Apotheosis / Ancient) and the augmenting table cost no materials or sigils",
+  "tooltip.enigmaticcurio.pearl.condition": "The enchanting table effect requires being the Cursed One and carrying this pearl",
+
+  "tooltip.enigmaticcurio.bag.header": "Effects active from the bag:",
+  "tooltip.enigmaticcurio.bag.empty": "No effect-granting book in the bag yet",
+  "tooltip.enigmaticcurio.bag.unsynced": "Bag effects: waiting for the server…",
+  "tooltip.enigmaticcurio.bag.effect.twist": "The Twist: %s damage vs bosses/players",
+  "tooltip.enigmaticcurio.bag.effect.infinitum": "The Infinitum: %s damage vs bosses/players",
+  "tooltip.enigmaticcurio.bag.effect.infinitum_lifesteal": "The Infinitum: %s of damage healed",
+  "tooltip.enigmaticcurio.bag.effect.bless": "The Bless: %s ticks of hurt immunity",
+  "tooltip.enigmaticcurio.bag.effect.the_acknowledgment": "The Acknowledgment: sets the target on fire",
+  "tooltip.enigmaticcurio.bag.effect.ode_to_living": "Ode to Living: animal-related effect",
+  "tooltip.enigmaticcurio.bag.effect.false_justice": "False Justice: attacks ignore rules",
+  "tooltip.enigmaticcurio.bag.effect.hunter_guidebook": "Hunter's Guidebook: animal/pet protection",
+  "tooltip.enigmaticcurio.bag.effect.sanguinary_handbook": "Sanguinary Handbook: in-bag damage effect",
+  "tooltip.enigmaticcurio.bag.effect.artificial_flower": "Magic Quartz Flower: no active attribute",
+  "tooltip.enigmaticcurio.bag.effect.artificial_flower_attr": "Magic Quartz Flower: %s %s (%s), %s ticks left",
+  "tooltip.enigmaticcurio.bag.flower_op.addition": "addition",
+  "tooltip.enigmaticcurio.bag.flower_op.multiply_base": "multiply base",
+  "tooltip.enigmaticcurio.bag.flower_op.multiply_total": "multiply total",
+  "tooltip.enigmaticcurio.bag.effect.fourth_curse": "Three books in the bag: Fourth Curse neutralised (needs the Ring of Seven Curses)",
 
   "msg.enigmaticcurio.flight.on": "Leaf of Revival: flight enabled",
   "msg.enigmaticcurio.flight.off": "Leaf of Revival: flight disabled",
   "msg.enigmaticcurio.berserk.on": "Berserk Charm: health lock enabled",
   "msg.enigmaticcurio.berserk.off": "Berserk Charm: health lock disabled",
+  "msg.enigmaticcurio.thunder.on": "Scale of Protection: lightning enabled",
+  "msg.enigmaticcurio.thunder.off": "Scale of Protection: lightning disabled",
   "msg.enigmaticcurio.book.locked": "This book is now locked",
   "msg.enigmaticcurio.book.unlocked": "This book is now unlocked"
 }

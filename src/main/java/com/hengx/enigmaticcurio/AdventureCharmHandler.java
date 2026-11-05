@@ -4,14 +4,18 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
-import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 
 /**
  * 神秘遗物扩展:冒险者徽章 / 绝望者徽章。
  *
  * <ul>
- *   <li>去除"无法挖掘"的限制(取消 BreakSpeed 上的压制);</li>
+ *   <li>去除"无法挖掘"的限制 —— <b>这一项不在本类里做</b>,见
+ *       {@link com.hengx.enigmaticcurio.mixin.AddonMiningMixin}:扩展压制的做法是把
+ *       {@code PlayerEvent$BreakSpeed} <b>取消</b>,不是把破坏速度改小,
+ *       所以只能在 mixin 里拦那两条 {@code setCanceled}。原来那版在这里用
+ *       {@code getNewSpeed() == 0} 判断、再 {@code setNewSpeed(...)},两个前提都不成立,
+ *       因此实测完全没效果(已删除,避免再被误认为生效);</li>
  *   <li>手持冒险者徽章死亡 ⇒ 自动转化成绝望者徽章。</li>
  * </ul>
  */
@@ -21,39 +25,6 @@ public final class AdventureCharmHandler {
     private static final String INSIGNIA_ID = "enigmaticaddons:despair_insignia";
 
     private AdventureCharmHandler() {
-    }
-
-    /** 允许挖掘:把被压到 0 的破坏速度还原成正常速度。 */
-    @SubscribeEvent
-    public static void onBreakSpeed(PlayerEvent.BreakSpeed event) {
-        try {
-            if (!CurioConfig.ADVENTURE_CHARM_MINING.get()) {
-                return;
-            }
-            Player player = event.getEntity();
-            if (player == null) {
-                return;
-            }
-            if (event.getNewSpeed() > 0.0F) {
-                return;   // 没被压制
-            }
-            Item charm = Superposition.item(CHARM_ID);
-            if (charm == null) {
-                return;
-            }
-            boolean wearing = Superposition.hasCurio(player, charm);
-            if (!wearing) {
-                return;
-            }
-            float restored = player.getDestroySpeed(event.getState());
-            if (restored > 0.0F) {
-                event.setNewSpeed(restored);
-                DebugLog.info("[徽章] 放开 {} 的挖掘限制,速度={}", player.getName().getString(), restored);
-            }
-        }
-        catch (RuntimeException | LinkageError ignored) {
-            // 忽略
-        }
     }
 
     /** 手持冒险者徽章死亡 ⇒ 转化成绝望者徽章。 */

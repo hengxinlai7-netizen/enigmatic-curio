@@ -2,6 +2,7 @@ package com.hengx.enigmaticcurio;
 
 import java.util.UUID;
 
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.item.Item;
@@ -11,13 +12,21 @@ import net.minecraft.world.item.ItemStack;
  * 「万钧之护」({@code enigmaticaddons:thunder_scroll},
  * 类 {@code auviotre.enigmatic.addon.contents.items.ThunderScroll})的两项开关。
  *
- * <h2>① 雷击效果可自由开关</h2>
+ * <h2>① 雷击效果:**逐件**、游戏内可开关(Ctrl + 左键)</h2>
  * 扩展原本的做法(反编译 {@code AddonEventHandler#onEntityHurt}):攻击者戴着卷轴、且主手物品
  * {@code canPerformAction(ToolActions.SWORD_SWEEP)}(剑)时,给**目标**的持久数据 {@code Electric}
  * 累加 {@code 60 + rand(80) + (int)(伤害*10)};{@code AddonEventHandler#onTick} 里 {@code Electric}
  * 超过 1200 就给目标劈一道雷。
- * 本模组把"累积电荷"这一步做成可关({@link CurioConfig#SCALE_LIGHTNING}):
- * 关掉后目标永远累积不到阈值,自然就不会落雷,护甲穿透等其它效果不受影响。
+ *
+ * <p>开关状态写在**卷轴自己的 NBT** {@value #NBT_THUNDER_OFF} 上(键不存在 = 开),所以是"逐件"的:
+ * 换一把卷轴就是另一个开关,跟着物品走(存档/交易/掉落都保留)。切换方式与主模组一致:
+ * <b>客户端识别 Ctrl + 左键 → {@link CurioNetwork} 发包 → 服务端校验并写 NBT</b>
+ * (由 {@link ItemToggleHandler} 统一处理)。</p>
+ *
+ * <p>旧的「潜行 + 右键」已作废 —— 那个手势会被 Curios 抢去佩戴饰品,开关点不到。</p>
+ *
+ * <p>关掉后 {@link #allowLightningCharge} 返回 false,{@code AddonThunderLightningMixin} 便不再写
+ * {@code Electric};目标永远累积不到阈值,自然就不会落雷,护甲穿透等其它效果不受影响。</p>
  *
  * <h2>② 加成效果可自由配置</h2>
  * 扩展原本用 {@code MixinEnchantmentHelper.getSweeping} 把
@@ -35,6 +44,12 @@ public final class ScrollHandler {
 
     /** 目标持久数据里的雷击电荷键(与扩展一致)。 */
     public static final String ELECTRIC = "Electric";
+
+    /**
+     * 卷轴物品自身的 NBT 键:为 true 表示"这一件卷轴的雷击已被玩家关掉"。
+     * <b>键不存在 = 开</b>(沿用扩展原行为)。
+     */
+    public static final String NBT_THUNDER_OFF = "enigmaticcurio:thunderOff";
 
     /** 本模组的攻击伤害修饰符 UUID(只属于本模组)。 */
     public static final UUID ATTACK_DAMAGE_UUID = UUID.fromString("6b1d4d2a-0f3c-4e77-9a51-2c8e7f0d3b14");
@@ -137,6 +152,46 @@ public final class ScrollHandler {
         }
     }
 
+    // ------------------------------------------------------------------ 逐件开关(Ctrl + 左键)
+
+    /** 这一件卷轴的雷击是否已被关掉(键不存在 = 开)。 */
+    public static boolean isThunderOff(ItemStack stack) {
+        try {
+            if (stack == null || stack.isEmpty() || !stack.hasTag()) {
+                return false;
+            }
+            CompoundTag tag = stack.getTag();
+            return tag != null && tag.getBoolean(NBT_THUNDER_OFF);
+        }
+        catch (RuntimeException | LinkageError e) {
+            return false;
+        }
+    }
+
+    /** 写入/清除"雷击已关闭"标记(清除时若 NBT 空了就一并清掉,不留空 CompoundTag)。 */
+    public static void setThunderOff(ItemStack stack, boolean off) {
+        try {
+            if (stack == null || stack.isEmpty()) {
+                return;
+            }
+            if (off) {
+                stack.getOrCreateTag().putBoolean(NBT_THUNDER_OFF, true);
+                return;
+            }
+            CompoundTag tag = stack.getTag();
+            if (tag == null) {
+                return;
+            }
+            tag.remove(NBT_THUNDER_OFF);
+            if (tag.isEmpty()) {
+                stack.setTag(null);
+            }
+        }
+        catch (RuntimeException | LinkageError ignored) {
+            // 忽略
+        }
+    }
+
     // ------------------------------------------------------------------ 雷击开关
 
     /**
@@ -152,8 +207,15 @@ public final class ScrollHandler {
                 // 没有攻击者时不是本功能管的范围,不改变原行为
                 return true;
             }
-            if (wornScroll(attacker).isEmpty()) {
+            ItemStack worn = wornScroll(attacker);
+            if (worn.isEmpty()) {
                 return true;   // 攻击者没戴卷轴
+            }
+            // 逐件开关:这一件卷轴被玩家关掉了就不累积电荷
+            if (isThunderOff(worn)) {
+                DebugLog.info("[万钧之护] {} 这一件卷轴的雷击已关闭,本次不累积电荷",
+                    attacker.getName().getString());
+                return false;
             }
             return true;
         }

@@ -1,12 +1,6 @@
 package com.hengx.enigmaticcurio;
 
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-
-import net.minecraft.ChatFormatting;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
@@ -15,7 +9,6 @@ import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.living.LivingHealEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
-import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 
@@ -64,9 +57,10 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
  *
  * <h2>开关(逐件 NBT)</h2>
  * 状态写在勋章自己的 NBT {@value #NBT_LOCK_DISABLED} 上(<b>键不存在 = 开 = 默认行为</b>)。
- * 主模组用 Ctrl+左键 + 自定义网络包切换饰品槽里的那一件;本模组没有网络通道,改成
- * <b>潜行 + 右键</b>:手上拿着这枚勋章时切换手上那件,空手时切换**饰品槽里戴着的那件**。
- * 由服务端写 NBT(客户端随后收到同步),所以两端状态一致。
+ * 触发方式与主模组一致:<b>Ctrl + 左键</b>(客户端识手势 → {@link CurioNetwork} 包 → 服务端校验 →
+ * 写 NBT → 同步回客户端),统一由 {@link ItemToggleHandler} 处理;戴着的那一件在饰品栏界面里
+ * Ctrl+左键 点它、拿在手上时在世界里 Ctrl+左键 都行。
+ * <p>旧的「潜行 + 右键」已作废:潜行右键会被 Curios 抢去佩戴饰品,开关点不到。</p>
  */
 public final class BerserkCharmHandler {
 
@@ -84,12 +78,6 @@ public final class BerserkCharmHandler {
 
     /** 血战沙场之证的注册 id。 */
     private static final String CHARM_ID = "enigmaticlegacy:berserk_charm";
-
-    /**
-     * 同一次右键会按手分别触发事件,这里做去抖:同一 tick 内只处理一次切换,
-     * 避免"空手 + 双手都空"时被翻两次。
-     */
-    private static final Map<UUID, Integer> LAST_TOGGLE_TICK = new ConcurrentHashMap<>();
 
     private static Item charm;
 
@@ -111,7 +99,8 @@ public final class BerserkCharmHandler {
         }
     }
 
-    private static boolean isCharm(ItemStack stack) {
+    /** 这叠东西是不是血战沙场之证。 */
+    public static boolean isCharm(ItemStack stack) {
         try {
             if (stack == null || stack.isEmpty()) {
                 return false;
@@ -145,15 +134,23 @@ public final class BerserkCharmHandler {
         }
     }
 
-    /** 写入/清除"锁血已关闭"标记。 */
+    /** 写入/清除"锁血已关闭"标记(清除时若 NBT 空了就一并清掉,不留空 CompoundTag)。 */
     public static void setLockOff(ItemStack stack, boolean off) {
         try {
-            CompoundTag tag = stack.getOrCreateTag();
-            if (off) {
-                tag.putBoolean(NBT_LOCK_DISABLED, true);
+            if (stack == null || stack.isEmpty()) {
+                return;
             }
-            else {
-                tag.remove(NBT_LOCK_DISABLED);
+            if (off) {
+                stack.getOrCreateTag().putBoolean(NBT_LOCK_DISABLED, true);
+                return;
+            }
+            CompoundTag tag = stack.getTag();
+            if (tag == null) {
+                return;
+            }
+            tag.remove(NBT_LOCK_DISABLED);
+            if (tag.isEmpty()) {
+                stack.setTag(null);
             }
         }
         catch (RuntimeException | LinkageError ignored) {
@@ -398,60 +395,8 @@ public final class BerserkCharmHandler {
         }
     }
 
-    // ------------------------------------------------------------------ 潜行 + 右键 切换
+    // ------------------------------------------------------------------ Ctrl + 左键 切换
 
-    /**
-     * 潜行+右键 切换锁血:手上拿着这枚勋章就切换手上那件;空手则切换**饰品槽里戴着的那件**。
-     * 只在服务端写 NBT(客户端随后收到同步),同一 tick 内只处理一次。
-     */
-    @SubscribeEvent(priority = EventPriority.HIGHEST)
-    public static void onRightClick(PlayerInteractEvent.RightClickItem event) {
-        try {
-            if (!CurioConfig.BLOODBATH_ENABLED.get()) {
-                return;
-            }
-            Player player = event.getEntity();
-            if (!player.isShiftKeyDown()) {
-                return;
-            }
-            if (player.level().isClientSide) {
-                return;   // 服务端权威
-            }
-            Integer last = LAST_TOGGLE_TICK.get(player.getUUID());
-            if (last != null && last == player.tickCount) {
-                return;   // 同一次右键的另一只手,忽略
-            }
-            ItemStack held = event.getItemStack();
-            ItemStack target = ItemStack.EMPTY;
-            if (isCharm(held)) {
-                target = held;
-            }
-            else if (held.isEmpty()) {
-                Item item = charmItem();
-                if (item != null) {
-                    ItemStack worn = Superposition.getCurioStack(player, item);
-                    if (!worn.isEmpty()) {
-                        target = worn;
-                    }
-                }
-            }
-            if (target.isEmpty()) {
-                return;
-            }
-            LAST_TOGGLE_TICK.put(player.getUUID(), player.tickCount);
-            boolean next = !isLockOff(target);
-            setLockOff(target, next);
-            if (!next && player instanceof ServerPlayer serverPlayer) {
-                // 重新开启:假血拉回锁值,真血不低于锁值
-                resetFakeHealth(serverPlayer);
-            }
-            player.sendSystemMessage(Component
-                .translatable(next ? "msg.enigmaticcurio.berserk.off" : "msg.enigmaticcurio.berserk.on")
-                .withStyle(next ? ChatFormatting.RED : ChatFormatting.GREEN));
-            event.setCanceled(true);
-        }
-        catch (RuntimeException | LinkageError ignored) {
-            // 忽略
-        }
-    }
+    // 切换本身由 ItemToggleHandler 统一处理:客户端 Ctrl+左键 → CurioNetwork 包 → 服务端校验 →
+    // setLockOff + afterToggle(resetFakeHealth)。本类只提供读写与"这一件是不是勋章"的判定。
 }

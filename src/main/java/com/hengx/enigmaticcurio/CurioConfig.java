@@ -36,6 +36,7 @@ public final class CurioConfig {
     public static final ForgeConfigSpec.BooleanValue FOURTH_CURSE_FIX;
     public static final ForgeConfigSpec.BooleanValue XP_SCROLL_CAP;
     public static final ForgeConfigSpec.IntValue XP_SCROLL_CAP_VALUE;
+    public static final ForgeConfigSpec.BooleanValue BAG_TOOLTIP_ENABLED;
 
     // 佳肴
     public static final ForgeConfigSpec.BooleanValue GLUTTONY_LOCK;
@@ -57,7 +58,7 @@ public final class CurioConfig {
             .define("booksEnabled", true);
         PEARL_FIX_ENCHANTING = b.comment("附魔师珍珠兼容神化附魔台。默认 true。")
             .define("pearlFixEnchanting", true);
-        PEARL_FIX_REFORGE = b.comment("装神化时,佩戴珍珠用重铸台不消耗新生符石。默认 true。")
+        PEARL_FIX_REFORGE = b.comment("重铸台(神化 / 远古重铸台)与强化台不消耗材料与符石。默认 true。")
             .define("pearlFixReforge", true);
         PEARL_EXTRA_ONLY_EXISTING = b.comment("珍珠在神化附魔台上的补掷是否只提升输入物品【已有】的附魔。",
                 "true = 不新增任何新附魔(过滤书架/海洋过滤书架的限制不会被绕过);",
@@ -66,7 +67,7 @@ public final class CurioConfig {
         b.pop();
 
         b.comment("神秘遗物扩展").push("addons");
-        BLOODBATH_ENABLED = b.comment("血战沙场之证:假血条锁血,可游戏内切换(潜行+右键)。默认 true。")
+        BLOODBATH_ENABLED = b.comment("血战沙场之证:假血条锁血,可游戏内切换(Ctrl+左键)。默认 true。")
             .define("bloodbathEnabled", true);
         BLOODBATH_LOCK_VALUE = b.comment("血战沙场之证:锁到多少点生命值。下限 0.5(写 0 会直接死亡)。默认 1。")
             .defineInRange("bloodbathLockValue", 1.0D, 0.5D, 1024.0D);
@@ -82,7 +83,8 @@ public final class CurioConfig {
             .define("forgerGemMax", true);
         SCALE_ENABLED = b.comment("万钧之护:总开关。关掉后雷击与加成都不生效,完全回到扩展原样。默认 true。")
             .define("scaleEnabled", true);
-        SCALE_LIGHTNING = b.comment("万钧之护:雷击效果。关掉后攻击不再累积电荷、不会再落雷(护甲穿透照旧)。默认 true。")
+        SCALE_LIGHTNING = b.comment("万钧之护:雷击效果。关掉后攻击不再累积电荷、不会再落雷(护甲穿透照旧)。",
+                "除此之外每一件卷轴还能单独用 Ctrl+左键 切换(NBT enigmaticcurio:thunderOff)。默认 true。")
             .define("scaleLightning", true);
         SCALE_RESTORE_SWEEP = b.comment("是否恢复扩展原本的横扫 100% 加成。默认 false。")
             .define("scaleRestoreSweep", false);
@@ -94,6 +96,9 @@ public final class CurioConfig {
             .define("xpScrollCap", true);
         XP_SCROLL_CAP_VALUE = b.comment("经验上限值。默认 1000000。")
             .defineInRange("xpScrollCapValue", 1_000_000, 1, Integer.MAX_VALUE);
+        BAG_TOOLTIP_ENABLED = b.comment("古旧书袋:在物品说明里显示袋内会生效的效果。默认 true。",
+                "袋内容只在服务端,由服务端每 20 tick 把结果写进书袋物品的 NBT 供客户端读取(不走网络包)。")
+            .define("bagTooltipEnabled", true);
         b.pop();
 
         b.comment("神秘佳肴").push("delicacy");
@@ -104,7 +109,7 @@ public final class CurioConfig {
         b.comment("已有功能").push("existing");
         MAGNET_RANGE = b.comment("磁吸戒指/超级磁吸戒指 吸取范围。默认 36。")
             .defineInRange("magnetRange", 36, 1, 64);
-        REVIVAL_LEAF_TOGGLE = b.comment("复苏之叶飞行开关(Ctrl+左键空挥)。默认 true。")
+        REVIVAL_LEAF_TOGGLE = b.comment("复苏之叶飞行开关(Ctrl+左键 切换)。默认 true。")
             .define("revivalLeafToggle", true);
         b.pop();
 
