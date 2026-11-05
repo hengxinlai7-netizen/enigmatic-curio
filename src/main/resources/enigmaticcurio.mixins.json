@@ -1,0 +1,27 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "com.hengx.enigmaticcurio.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "refmap": "enigmaticcurio.refmap.json",
+  "mixins": [
+    "RevivalLeafFlightMixin",
+    "EnderChestExpansionMixin",
+    "EnderChestBlockMenuMixin",
+    "EnderRingLargeMenuMixin",
+    "BlessRingMixin",
+    "BlessRingBarMixin",
+    "BlessRingHelperMixin",
+    "BlessRingTickMixin",
+    "AddonThunderLightningMixin",
+    "EnchantmentHelperSweepMixin",
+    "FourthCurseMixin",
+    "FourthCurseAddonMixin",
+    "PearlApothEnchantMixin",
+    "PearlReforgeMixin"
+  ],
+  "client": [],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}

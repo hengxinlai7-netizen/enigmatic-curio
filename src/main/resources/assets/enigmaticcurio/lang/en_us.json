@@ -1,0 +1,48 @@
+{
+  "tooltip.enigmaticcurio.added": "· [Curio Enhance] %s",
+  "tooltip.enigmaticcurio.state.on": "Currently: ON",
+  "tooltip.enigmaticcurio.state.off": "Currently: OFF",
+
+  "tooltip.enigmaticcurio.revival_leaf.effect": "Its creative flight can be turned off (other Dragon Head bonuses remain)",
+  "tooltip.enigmaticcurio.revival_leaf.key": "Ctrl+Left Click (swing at air) to toggle · %s",
+
+  "tooltip.enigmaticcurio.berserk.effect": "Health locked at %s (fake bar: damage is taken from it, healing is void)",
+  "tooltip.enigmaticcurio.berserk.key": "Sneak + Right Click to toggle · %s",
+
+  "tooltip.enigmaticcurio.books.locked": "Locked: right click will not open it",
+  "tooltip.enigmaticcurio.books.unlocked": "Ctrl+Right Click to lock it, then right click will not open it",
+  "tooltip.enigmaticcurio.books.key": "Ctrl+Right Click to toggle the lock",
+
+  "tooltip.enigmaticcurio.adventure.effect": "Can now break blocks normally",
+  "tooltip.enigmaticcurio.adventure.convert": "Turns into the Insignia of Despair when you die while holding it",
+  "tooltip.enigmaticcurio.despair.effect": "Can now break blocks normally",
+
+  "tooltip.enigmaticcurio.engine.effect": "Its punishing lightning bolt is blocked",
+
+  "tooltip.enigmaticcurio.forger_gem.effect": "Two same-level enchanted books on an anvil → straight to max level",
+
+  "tooltip.enigmaticcurio.xp_scroll.effect": "Experience from a single source is capped at %s",
+
+  "tooltip.enigmaticcurio.gluttony.effect": "Food level locked at 0, saturation locked at 1 (only saturation is consumed)",
+
+  "tooltip.enigmaticcurio.ender.effect": "Ender chest capacity expanded to 54 slots (9x6)",
+
+  "tooltip.enigmaticcurio.bless_ring.effect": "Never breaks, betrayal bar hidden",
+  "tooltip.enigmaticcurio.bless_ring.pair": "Can be worn together with the Ring of Seven Curses, without the punishment",
+
+  "tooltip.enigmaticcurio.cursed_ring.fourth": "With all three books in the Antique Bag, the fourth curse no longer reduces your damage",
+
+  "tooltip.enigmaticcurio.thunder.effect": "Attack damage +%s%% (replaces the original sweeping bonus)",
+  "tooltip.enigmaticcurio.thunder.lightning": "Lightning · %s",
+
+  "tooltip.enigmaticcurio.pearl.enchant": "Enchanting table (including Apotheosis): no lapis, plus one extra enchantment roll",
+  "tooltip.enigmaticcurio.pearl.reforge": "Apotheosis reforging table does not consume Sigils of Rebirth",
+  "tooltip.enigmaticcurio.pearl.condition": "The enchanting table effect requires being the Cursed One and wearing this pearl",
+
+  "msg.enigmaticcurio.flight.on": "Leaf of Revival: flight enabled",
+  "msg.enigmaticcurio.flight.off": "Leaf of Revival: flight disabled",
+  "msg.enigmaticcurio.berserk.on": "Berserk Charm: health lock enabled",
+  "msg.enigmaticcurio.berserk.off": "Berserk Charm: health lock disabled",
+  "msg.enigmaticcurio.book.locked": "This book is now locked",
+  "msg.enigmaticcurio.book.unlocked": "This book is now unlocked"
+}

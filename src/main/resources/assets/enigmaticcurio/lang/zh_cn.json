@@ -1,0 +1,48 @@
+{
+  "tooltip.enigmaticcurio.added": "· [饰品增强] %s",
+  "tooltip.enigmaticcurio.state.on": "当前:开启",
+  "tooltip.enigmaticcurio.state.off": "当前:关闭",
+
+  "tooltip.enigmaticcurio.revival_leaf.effect": "可关闭它授予的创造飞行(龙首其它加成保留)",
+  "tooltip.enigmaticcurio.revival_leaf.key": "Ctrl+左键 空挥 切换 · %s",
+
+  "tooltip.enigmaticcurio.berserk.effect": "生命值锁定为 %s 点(假血条:受伤只扣它,回血无效)",
+  "tooltip.enigmaticcurio.berserk.key": "潜行 + 右键 切换 · %s",
+
+  "tooltip.enigmaticcurio.books.locked": "已锁定,右键不会打开",
+  "tooltip.enigmaticcurio.books.unlocked": "可按 Ctrl+右键 锁定,锁定后右键不再打开",
+  "tooltip.enigmaticcurio.books.key": "Ctrl+右键 切换锁定",
+
+  "tooltip.enigmaticcurio.adventure.effect": "已可正常挖掘方块",
+  "tooltip.enigmaticcurio.adventure.convert": "死亡时自动转化为绝望者证章",
+  "tooltip.enigmaticcurio.despair.effect": "已可正常挖掘方块",
+
+  "tooltip.enigmaticcurio.engine.effect": "拦截它的惩罚雷击",
+
+  "tooltip.enigmaticcurio.forger_gem.effect": "铁砧上两本同级同附魔书 → 直接升到满级",
+
+  "tooltip.enigmaticcurio.xp_scroll.effect": "单次获得的经验夹到上限 %s",
+
+  "tooltip.enigmaticcurio.gluttony.effect": "饱食度锁定 0、饱和度锁定 1(消耗只扣饱和度)",
+
+  "tooltip.enigmaticcurio.ender.effect": "末影箱容量扩到 54 格(9x6)",
+
+  "tooltip.enigmaticcurio.bless_ring.effect": "永不破损、隐藏背叛条",
+  "tooltip.enigmaticcurio.bless_ring.pair": "可与七咒之戒同戴,同戴时不再承受惩罚",
+
+  "tooltip.enigmaticcurio.cursed_ring.fourth": "古旧书袋收齐倒转之启/无止之言/恩惠之典时,第四重咒不再削减伤害",
+
+  "tooltip.enigmaticcurio.thunder.effect": "攻击伤害 +%s%%(取代原本的横扫加成)",
+  "tooltip.enigmaticcurio.thunder.lightning": "雷击 · %s",
+
+  "tooltip.enigmaticcurio.pearl.enchant": "附魔台(含神化)免青金石,并额外多给一次附魔",
+  "tooltip.enigmaticcurio.pearl.reforge": "神化重铸台不消耗新生符石",
+  "tooltip.enigmaticcurio.pearl.condition": "附魔台效果需身为七咒之人并佩戴本珍珠",
+
+  "msg.enigmaticcurio.flight.on": "复苏之叶:飞行已开启",
+  "msg.enigmaticcurio.flight.off": "复苏之叶:飞行已关闭",
+  "msg.enigmaticcurio.berserk.on": "血战沙场之证:锁血已开启",
+  "msg.enigmaticcurio.berserk.off": "血战沙场之证:锁血已关闭",
+  "msg.enigmaticcurio.book.locked": "这本书已锁定",
+  "msg.enigmaticcurio.book.unlocked": "这本书已解锁"
+}
