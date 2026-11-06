@@ -1,0 +1,16 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "com.hengx.enigmaticcurio.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "refmap": "enigmaticcurio.refmap.json",
+  "mixins": [
+    "ApothSocketingRecipeMixin",
+    "RsiJeiInventoryEntryMixin",
+    "RsiJeiInventoryPacketMixin"
+  ],
+  "client": [],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}

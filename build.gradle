@@ -80,6 +80,10 @@ dependencies {
     // 运行时是第三方模组、可能缺席,登记在 enigmaticenhance.optional.mixins.json(required:false + defaultRequire:0))。
     compileOnly files('libs/ancientreforging-1.3.jar')
     compileOnly files('libs/lootr-forge-1.20-0.7.35.94.jar')
+    // Refined Storage Integration(仅编译期:让 Mixin 注解处理器能解析 @Mixin(JeiNetworkInventoryPacket.Entry.class)
+    // 的目标类;运行时是第三方模组、可能缺席,登记在 enigmaticcurio.optional.mixins.json
+    // (required:false + defaultRequire:0 + 每个注入点 require=0))。
+    compileOnly files('libs/rs_integration-1.5.2.3.jar')
 
     // Mixin 注解处理器(编译期校验 @Mixin 注入目标)
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
@@ -124,7 +128,7 @@ tasks.named('jar', Jar).configure {
                 'Implementation-Vendor'   : mod_authors,
                 'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
                 // Forge 从 MANIFEST 的这个属性加载 mixin 配置(逗号分隔:主配置 + 可选第三方兼容配置)
-                'MixinConfigs'            : 'enigmaticcurio.mixins.json'
+                'MixinConfigs'            : 'enigmaticcurio.mixins.json,enigmaticcurio.optional.mixins.json'
         ])
     }
     finalizedBy 'reobfJar'
