@@ -1,12 +1,16 @@
 package com.hengx.enigmaticcurio;
 
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
 
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraftforge.common.capabilities.Capability;
+import net.minecraftforge.common.util.LazyOptional;
 import net.minecraftforge.registries.ForgeRegistries;
 
 /**
@@ -83,5 +87,99 @@ public final class BookBag {
             findBookInBag = null;
         }
         return findBookInBag;
+    }
+
+    // ------------------------------------------------------------------ 诊断:capability 现状
+
+    /**
+     * 诊断用的"书袋 capability 现状"。
+     *
+     * <p>反编译依据({@code AntiqueBagCapability}, 1.2.5):capability 挂在**玩家实体**上
+     * ({@code AddonEventHandler#attachEntitiesCapabilities} → {@code createProvider(LivingEntity)},
+     * 只对 {@code Player} 挂),**不是**挂在物品栈上;取法就是原版的
+     * {@code player.getCapability(AntiqueBagCapability.INVENTORY)}
+     * (扩展自己的 {@code SuperAddonHandler.getCapability(Player, Capability)} 也只是转调它)。
+     * 内容读法:{@code IAntiqueBagHandler#getSlots()} / {@code #getBook(int)} /
+     * {@code #getInventory()} / {@code #findBook(Item)}。</p>
+     *
+     * @param present 是否取到了 capability
+     * @param slots   槽位数(取不到时为 0)
+     * @param books   袋内非空物品(取不到时为空表)
+     */
+    public record BagState(boolean present, int slots, List<ItemStack> books) {
+
+        /** 一行诊断文本,如 {@code 有(12格,2件:the_bless,artificial_flower)}。 */
+        public String describe() {
+            if (!present) {
+                return "无(取不到 capability)";
+            }
+            StringBuilder sb = new StringBuilder("有(").append(this.slots).append("格,")
+                .append(this.books.size()).append("件");
+            for (int i = 0; i < this.books.size(); i++) {
+                sb.append(i == 0 ? ':' : ',');
+                ResourceLocation id = ForgeRegistries.ITEMS.getKey(this.books.get(i).getItem());
+                sb.append(id == null ? "?" : id.getPath());
+            }
+            return sb.append(')').toString();
+        }
+    }
+
+    /** 只读地取一次书袋 capability 的现状(缺扩展/取不到 → {@code present=false})。 */
+    public static BagState contents(Player player) {
+        if (player == null) {
+            return new BagState(false, 0, List.of());
+        }
+        try {
+            Object capabilityInstance = capability();
+            if (capabilityInstance == null) {
+                return new BagState(false, 0, List.of());
+            }
+            Method get = Class.forName("net.minecraftforge.common.capabilities.ICapabilityProvider",
+                false, BookBag.class.getClassLoader()).getMethod("getCapability", Capability.class);
+            Object lazy = get.invoke(player, capabilityInstance);
+            if (!(lazy instanceof LazyOptional<?> optional)) {
+                return new BagState(false, 0, List.of());
+            }
+            Object handler = optional.resolve().orElse(null);
+            if (handler == null) {
+                return new BagState(false, 0, List.of());
+            }
+            Class<?> itf = Class.forName(
+                "auviotre.enigmatic.addon.contents.objects.bookbag.IAntiqueBagHandler",
+                false, BookBag.class.getClassLoader());
+            int slots = (Integer) itf.getMethod("getSlots").invoke(handler);
+            Method getBook = itf.getMethod("getBook", int.class);
+            List<ItemStack> books = new ArrayList<>(slots);
+            for (int i = 0; i < slots; i++) {
+                Object stack = getBook.invoke(handler, i);
+                if (stack instanceof ItemStack itemStack && !itemStack.isEmpty()) {
+                    books.add(itemStack);
+                }
+            }
+            return new BagState(true, slots, books);
+        }
+        catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
+            return new BagState(false, 0, List.of());
+        }
+    }
+
+    private static Object capabilityField;
+    private static boolean capResolved;
+
+    private static synchronized Object capability() {
+        if (capResolved) {
+            return capabilityField;
+        }
+        capResolved = true;
+        try {
+            Class<?> cls = Class.forName(
+                "auviotre.enigmatic.addon.contents.objects.bookbag.AntiqueBagCapability",
+                false, BookBag.class.getClassLoader());
+            capabilityField = cls.getField("INVENTORY").get(null);
+        }
+        catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
+            capabilityField = null;
+        }
+        return capabilityField;
     }
 }

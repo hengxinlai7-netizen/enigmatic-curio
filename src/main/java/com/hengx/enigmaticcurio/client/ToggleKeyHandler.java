@@ -12,6 +12,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 import net.minecraftforge.client.event.InputEvent;
 import net.minecraftforge.client.event.ScreenEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -87,6 +88,20 @@ public final class ToggleKeyHandler {
             event.setSwingHand(true);
             CurioNetwork.CHANNEL.sendToServer(
                 new CurioNetwork.HandTogglePacket(InteractionHand.MAIN_HAND.ordinal()));
+        }
+        catch (RuntimeException | LinkageError ignored) {
+            // 忽略
+        }
+    }
+
+    /**
+     * 退服时清掉书袋效果的客户端缓存,免得把上一个服务器的数据带到下一个
+     * (见 {@link com.hengx.enigmaticcurio.BagHudClient})。
+     */
+    @SubscribeEvent
+    public static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
+        try {
+            com.hengx.enigmaticcurio.BagHudClient.reset();
         }
         catch (RuntimeException | LinkageError ignored) {
             // 忽略

@@ -43,8 +43,10 @@ import net.minecraftforge.registries.ForgeRegistries;
  * (onTick 每 tick 把 Integer 减 1,≤1 时从玩家属性表移除)。这里在**服务端**用反射只读它,
  * 把每条修饰符拆成一行。
  *
- * <p><b>本类只在服务端算</b>({@link #collect(Player)});客户端读的是
- * {@link BagHudSync} 写进书袋物品 NBT 的那份缓存({@link #read(ItemStack)})。</p>
+ * <p><b>本类只在服务端算</b>({@link #collect(Player)});送到客户端的路径有两条(见
+ * {@link BagHudSync}):①服务端把结果写进书袋物品 NBT({@link #NBT_KEY}),客户端用
+ * {@link #read(ItemStack)} 读;②服务端再推一份 S2C 包,客户端存进 {@link BagHudClient}。
+ * 两条解析共用 {@link #toLines}/{@link #parseLines},格式不会跑偏。</p>
  */
 public final class BagHudEffects {
 
@@ -112,29 +114,37 @@ public final class BagHudEffects {
             return out;
         }
         for (String id : BOOKS) {
-            if (BookBag.findBook(player, new ResourceLocation(id)).isEmpty()) {
-                continue;
-            }
-            switch (id) {
-                case "enigmaticlegacy:the_twist" -> out.add(new Entry(id, key("twist"), "10%",
-                    flag(player, "isTheCursedOne")));
-                case "enigmaticlegacy:the_infinitum" -> {
-                    boolean worthy = flag(player, "isTheWorthyOne");
-                    out.add(new Entry(id, key("infinitum"), "20%", worthy));
-                    out.add(new Entry(id, key("infinitum_lifesteal"), "10%", worthy));
+            try {
+                if (BookBag.findBook(player, new ResourceLocation(id)).isEmpty()) {
+                    continue;
                 }
-                case "enigmaticaddons:the_bless" -> out.add(new Entry(id, key("bless"),
-                    String.valueOf(blessInvulnerableTime()), true));
-                case FLOWER_ID -> out.addAll(artificialFlower(player));
-                case "enigmaticlegacy:the_acknowledgment" -> out.add(new Entry(id, key("the_acknowledgment"),
-                    "", true));
-                case "enigmaticaddons:ode_to_living" -> out.add(new Entry(id, key("ode_to_living"), "", true));
-                case "enigmaticaddons:false_justice" -> out.add(new Entry(id, key("false_justice"), "", true));
-                case "enigmaticlegacy:hunter_guidebook" -> out.add(new Entry(id, key("hunter_guidebook"), "",
-                    true));
-                case "enigmaticaddons:sanguinary_handbook" -> out.add(new Entry(id, key("sanguinary_handbook"),
-                    "", true));
-                default -> out.add(new Entry(id, key(id.substring(id.indexOf(':') + 1)), "", true));
+                switch (id) {
+                    case "enigmaticlegacy:the_twist" -> out.add(new Entry(id, key("twist"), "10%",
+                        flag(player, "isTheCursedOne")));
+                    case "enigmaticlegacy:the_infinitum" -> {
+                        boolean worthy = flag(player, "isTheWorthyOne");
+                        out.add(new Entry(id, key("infinitum"), "20%", worthy));
+                        out.add(new Entry(id, key("infinitum_lifesteal"), "10%", worthy));
+                    }
+                    case "enigmaticaddons:the_bless" -> out.add(new Entry(id, key("bless"),
+                        String.valueOf(blessInvulnerableTime()), true));
+                    case FLOWER_ID -> out.addAll(artificialFlower(player));
+                    case "enigmaticlegacy:the_acknowledgment" -> out.add(new Entry(id,
+                        key("the_acknowledgment"), "", true));
+                    case "enigmaticaddons:ode_to_living" -> out.add(new Entry(id, key("ode_to_living"), "",
+                        true));
+                    case "enigmaticaddons:false_justice" -> out.add(new Entry(id, key("false_justice"), "",
+                        true));
+                    case "enigmaticlegacy:hunter_guidebook" -> out.add(new Entry(id, key("hunter_guidebook"),
+                        "", true));
+                    case "enigmaticaddons:sanguinary_handbook" -> out.add(new Entry(id,
+                        key("sanguinary_handbook"), "", true));
+                    default -> out.add(new Entry(id, key(id.substring(id.indexOf(':') + 1)), "", true));
+                }
+            }
+            catch (RuntimeException | LinkageError e) {
+                // 单本书算失败绝不拖垮整份清单(否则整条链路会静默罢工)
+                DebugLog.warn("[书袋] 统计 {} 失败,已跳过: {}", id, e.toString());
             }
         }
         // 本模组的"三书齐修正第四重咒":不属于任何一本物品,单独一条
@@ -299,12 +309,46 @@ public final class BagHudEffects {
 
     // ------------------------------------------------------------------ 物品 NBT 缓存(替代主模组的网络包)
 
+    /** 条目 → 字符串列表(每条 5 段用 | 分隔,detail 里允许再带 |)。NBT 与网络包共用同一份格式。 */
+    public static java.util.List<String> toLines(List<Entry> entries) {
+        java.util.List<String> lines = new ArrayList<>(entries.size());
+        for (Entry e : entries) {
+            lines.add(e.bookId() + "|" + e.effectKey() + "|" + e.value() + "|" + e.active() + "|"
+                + e.detail());
+        }
+        return lines;
+    }
+
+    /** 字符串列表 → 条目(坏的条目直接跳过,绝不抛异常)。 */
+    public static List<Entry> parseLines(java.util.List<String> lines) {
+        List<Entry> out = new ArrayList<>();
+        if (lines == null) {
+            return out;
+        }
+        for (String line : lines) {
+            try {
+                if (line == null) {
+                    continue;
+                }
+                String[] parts = line.split("\\|", 5);
+                if (parts.length < 4) {
+                    continue;
+                }
+                out.add(new Entry(parts[0], parts[1], parts[2], Boolean.parseBoolean(parts[3]),
+                    parts.length > 4 ? parts[4] : ""));
+            }
+            catch (RuntimeException ignored) {
+                // 单条坏了就跳过
+            }
+        }
+        return out;
+    }
+
     /** 条目 → NBT 列表(每条一个字符串,5 段用 | 分隔,detail 里允许再带 |)。 */
     public static ListTag write(List<Entry> entries) {
         ListTag list = new ListTag();
-        for (Entry e : entries) {
-            list.add(StringTag.valueOf(e.bookId() + "|" + e.effectKey() + "|" + e.value() + "|"
-                + e.active() + "|" + e.detail()));
+        for (String line : toLines(entries)) {
+            list.add(StringTag.valueOf(line));
         }
         return list;
     }
@@ -335,14 +379,11 @@ public final class BagHudEffects {
                 return out;
             }
             ListTag list = tag.getList(NBT_KEY, Tag.TAG_STRING);
+            java.util.List<String> lines = new ArrayList<>(list.size());
             for (int i = 0; i < list.size(); i++) {
-                String[] parts = list.getString(i).split("\\|", 5);
-                if (parts.length < 4) {
-                    continue;
-                }
-                out.add(new Entry(parts[0], parts[1], parts[2], Boolean.parseBoolean(parts[3]),
-                    parts.length > 4 ? parts[4] : ""));
+                lines.add(list.getString(i));
             }
+            out.addAll(parseLines(lines));
         }
         catch (RuntimeException | LinkageError ignored) {
             // 缓存坏了就当没有
@@ -350,7 +391,13 @@ public final class BagHudEffects {
         return out;
     }
 
-    /** 写进书袋物品的 NBT;内容没变就不碰(避免无谓的同步)。 */
+    /**
+     * 写进书袋物品的 NBT;内容没变就不碰(避免无谓的同步)。
+     *
+     * <p>注意:「内容没变」必须是**键存在且值相同**才算 —— 之前只看值,导致<b>空效果列表</b>
+     * 永远不会被写进物品(空 ListTag 与「没有这个键」取出来都是空列表),客户端于是永远认为
+     * 「服务器没同步过」。这里补上 {@code contains} 判断。</p>
+     */
     public static boolean store(ItemStack bagStack, List<Entry> entries) {
         try {
             if (bagStack == null || bagStack.isEmpty()) {
@@ -358,7 +405,8 @@ public final class BagHudEffects {
             }
             ListTag list = write(entries);
             CompoundTag tag = bagStack.getOrCreateTag();
-            if (list.equals(tag.getList(NBT_KEY, Tag.TAG_STRING))) {
+            boolean present = tag.contains(NBT_KEY, Tag.TAG_LIST);
+            if (present && list.equals(tag.getList(NBT_KEY, Tag.TAG_STRING))) {
                 return false;
             }
             tag.put(NBT_KEY, list);

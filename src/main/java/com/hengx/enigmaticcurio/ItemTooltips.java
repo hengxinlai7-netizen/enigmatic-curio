@@ -168,16 +168,35 @@ public final class ItemTooltips {
     /**
      * 古旧书袋:把袋内"会生效的效果"逐条列出来。
      *
-     * <p>数据来自书袋物品自己的 NBT({@link BagHudEffects#NBT_KEY}),由 {@link BagHudSync} 在服务端
-     * 算好后写进去(书袋内容原本只在服务端 capability 里,客户端拿不到,原版也没有同步它)。</p>
+     * <h2>数据来源(按优先级)</h2>
+     * <ol>
+     *   <li><b>书袋物品自己的 NBT</b>({@link BagHudEffects#NBT_KEY}):由 {@link BagHudSync} 在服务端
+     *       算好后写进去(书袋内容原本只在服务端 capability 里,客户端拿不到);</li>
+     *   <li><b>本模组 S2C 包推来的那份</b>({@link BagHudClient#cache()}):NBT 那条通道是"随容器同步"
+     *       走的,一旦那一次被丢掉客户端就再也没有数据,所以留了这条不经过容器的备用通道;</li>
+     *   <li>两条都没有 → 先(每秒最多一次)向服务端要一次;20 tick 的宽限期过后仍然没有,
+     *       就把「等待服务器同步…」改成「(服务端未提供数据)」,不再无限等下去。</li>
+     * </ol>
      */
     private static void addBagLines(List<Component> lines, ItemStack stack) {
-        if (!BagHudEffects.hasCache(stack)) {
-            // 服务器还没算过这一件(例如刚拿到手、或服务端没开这个功能)
-            add(lines, line("bag.unsynced"));
+        List<BagHudEffects.Entry> entries = null;
+        String source = "无";
+        if (BagHudEffects.hasCache(stack)) {
+            entries = BagHudEffects.read(stack);
+            source = "物品NBT";
+        }
+        else if (BagHudClient.cache() != null) {
+            entries = BagHudClient.cache();
+            source = "服务端包";
+        }
+        if (entries == null) {
+            BagHudClient.requestIfStale();
+            boolean broken = BagHudClient.serverProvidedNothing();
+            add(lines, line(broken ? "bag.nodata" : "bag.unsynced"));
+            BagHudClient.noteTooltip(broken ? "无(超时)" : "无(等待中)", 0);
             return;
         }
-        List<BagHudEffects.Entry> entries = BagHudEffects.read(stack);
+        BagHudClient.noteTooltip(source, entries.size());
         if (entries.isEmpty()) {
             add(lines, line("bag.empty"));
             return;

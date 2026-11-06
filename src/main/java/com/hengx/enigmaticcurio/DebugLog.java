@@ -25,6 +25,19 @@ public final class DebugLog {
         }
     }
 
+    /**
+     * <b>不受 debugLog 门控</b>的日志:只给"必须让用户看见"的诊断用(书袋同步链路),
+     * 调用方自己负责节流(5 秒一次),避免刷屏。
+     */
+    public static void infoAlways(String format, Object... args) {
+        try {
+            LOGGER.info(format, args);
+        }
+        catch (RuntimeException | LinkageError ignored) {
+            // 记日志失败绝不能影响游戏
+        }
+    }
+
     public static void warn(String format, Object... args) {
         LOGGER.warn(format, args);
     }

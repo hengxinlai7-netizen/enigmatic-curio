@@ -42,6 +42,7 @@
   "tooltip.enigmaticcurio.bag.header": "Effects active from the bag:",
   "tooltip.enigmaticcurio.bag.empty": "No effect-granting book in the bag yet",
   "tooltip.enigmaticcurio.bag.unsynced": "Bag effects: waiting for the server…",
+  "tooltip.enigmaticcurio.bag.nodata": "Bag effects: (server provided no data)",
   "tooltip.enigmaticcurio.bag.effect.twist": "The Twist: %s damage vs bosses/players",
   "tooltip.enigmaticcurio.bag.effect.infinitum": "The Infinitum: %s damage vs bosses/players",
   "tooltip.enigmaticcurio.bag.effect.infinitum_lifesteal": "The Infinitum: %s of damage healed",

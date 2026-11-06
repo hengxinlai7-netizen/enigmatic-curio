@@ -42,6 +42,7 @@
   "tooltip.enigmaticcurio.bag.header": "袋内生效效果:",
   "tooltip.enigmaticcurio.bag.empty": "袋内还没有会生效的书",
   "tooltip.enigmaticcurio.bag.unsynced": "袋内效果:等待服务器同步…",
+  "tooltip.enigmaticcurio.bag.nodata": "袋内效果:(服务端未提供数据)",
   "tooltip.enigmaticcurio.bag.effect.twist": "倒转之启:%s(对 BOSS/玩家伤害)",
   "tooltip.enigmaticcurio.bag.effect.infinitum": "无止之言:%s(对 BOSS/玩家伤害)",
   "tooltip.enigmaticcurio.bag.effect.infinitum_lifesteal": "无止之言:伤害的 %s 转为治疗",
