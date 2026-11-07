@@ -1,6 +1,8 @@
 package com.hengx.enigmaticcurio;
 
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -13,14 +15,18 @@ import net.minecraftforge.fml.ModList;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.ToIntFunction;
 
 /**
  * 神秘遗物扩展:增强「锻造者宝石」。
  *
  * <p>原版铁砧合并两本"同级同附魔"的书只会 +1 级。现在携带锻造者宝石时,
- * 直接升到该附魔在<b>当前环境</b>里的最高等级。</p>
+ * 把两本书<b>都拥有、且等级相同</b>的每一个附魔,直接升到它在<b>当前环境</b>里的最高等级
+ * (见 {@link UpgradePlan})。只在一本书里出现、或两本等级不同的附魔<b>不动</b>。</p>
  *
  * <p><b>为什么上限不能直接用 {@link Enchantment#getMaxLevel()}:</b>
  * 神化(Apotheosis)用 coremod 把 {@code EnchantedBookItem}、{@code AnvilMenu} 等类里的
@@ -81,48 +87,103 @@ public final class ForgerGemAnvilHandler {
             if (!carrying(player)) {
                 return;
             }
-            Map<Enchantment, Integer> a = EnchantmentHelper.getEnchantments(left);
-            Map<Enchantment, Integer> b = EnchantmentHelper.getEnchantments(right);
-            if (a.size() != 1 || b.size() != 1) {
+            Map<Enchantment, Integer> leftEnch = EnchantmentHelper.getEnchantments(left);
+            Map<Enchantment, Integer> rightEnch = EnchantmentHelper.getEnchantments(right);
+            if (leftEnch.isEmpty() || rightEnch.isEmpty()) {
                 return;
             }
-            Map.Entry<Enchantment, Integer> ea = a.entrySet().iterator().next();
-            Map.Entry<Enchantment, Integer> eb = b.entrySet().iterator().next();
-            if (!ea.getKey().equals(eb.getKey()) || !ea.getValue().equals(eb.getValue())) {
-                return;   // 必须同一附魔、同一等级
+
+            // 附魔 → "注册名 → 等级" + "注册名 → Enchantment"(日志、写回都要用)
+            Map<String, Integer> leftLevels = new LinkedHashMap<>();
+            Map<String, Enchantment> byId = new LinkedHashMap<>();
+            index(leftEnch, leftLevels, byId);
+            Map<String, Integer> rightLevels = new LinkedHashMap<>();
+            index(rightEnch, rightLevels, null);
+
+            // 1. 可升级集合:两本书都有、且等级相同(多词条书会命中多条)
+            Map<String, Integer> candidates = UpgradePlan.candidates(leftLevels, rightLevels);
+            if (candidates.isEmpty()) {
+                return;   // 没有共同同级附魔:交回原版行为
             }
 
-            Enchantment ench = ea.getKey();
-            int level = ea.getValue();
-            int vanillaMax = ench.getMaxLevel();
-            int apothMax = apothMaxLevel(ench);
-            int target = Math.max(vanillaMax, apothMax);
-            if (level >= target) {
-                return;   // 已达当前环境的上限
+            // 2. 每个可升级附魔取上限 = max(原版上限, 神化上限);顺手缓存给日志用
+            Map<String, int[]> maxes = new HashMap<>();   // id -> {vanillaMax, apothMax, targetMax}
+            ToIntFunction<String> maxLookup = id -> {
+                int[] cached = maxes.get(id);
+                if (cached == null) {
+                    Enchantment ench = byId.get(id);
+                    int vanillaMax = ench == null ? 1 : ench.getMaxLevel();
+                    int apothMax = ench == null ? -1 : apothMaxLevel(ench);
+                    cached = new int[] {vanillaMax, apothMax, Math.max(vanillaMax, apothMax)};
+                    maxes.put(id, cached);
+                }
+                return cached[2];
+            };
+
+            // 3. 已满级的剔除;一条都不剩 ⇒ 不输出(交回原版行为)
+            Map<String, Integer> changes = UpgradePlan.applyMax(candidates, maxLookup);
+            if (changes.isEmpty()) {
+                if (shouldLog()) {
+                    DebugLog.infoAlways(
+                        "[锻造者宝石] 可升级附魔全部已在当前环境上限,不输出 | 可升级集合={} | 明细={} | 左={} | 右={}",
+                        candidates.keySet(), detail(candidates, changes, maxes),
+                        describeIds(leftLevels), describeIds(rightLevels));
+                }
+                return;
             }
 
             // 关键:复制左槽整本书(display/lore/HideFlags/RepairCost/affix_data 等全部保留)
             ItemStack out = left.copy();
             out.setCount(1);
-            // 取出附魔表,把目标附魔"替换"为上限级,再写回(不是额外多挂一条)
+            // 取出附魔表,逐条把目标附魔"替换"为上限级,再写回(不是额外多挂一条)
             Map<Enchantment, Integer> enchants = EnchantmentHelper.getEnchantments(out);
-            enchants.put(ench, target);
+            int cost = 1;
+            for (Map.Entry<String, Integer> change : changes.entrySet()) {
+                Enchantment ench = byId.get(change.getKey());
+                if (ench == null) {
+                    continue;   // 理论上不会发生:candidates 的键全部来自左槽
+                }
+                enchants.put(ench, change.getValue());
+                // 原版 AnvilMenu 在 cost >= 40 时判定"过于昂贵",取最大目标等级而不是求和,
+                // 保证多词条书也能真的被取走(单词条时与旧行为完全一致)
+                cost = Math.max(cost, change.getValue());
+            }
             EnchantmentHelper.setEnchantments(enchants, out);
 
             event.setOutput(out);
-            event.setCost(Math.max(1, target));
+            event.setCost(cost);
             event.setMaterialCost(1);   // 与普通铁砧一致:始终消耗 1 本副书
 
             if (shouldLog()) {
                 DebugLog.infoAlways(
-                    "[锻造者宝石] 附魔书直升 {} | 左={} | 右={} | 等级 {} -> {} | vanillaMax={} apothMax={} targetMax={} | 输出NBT={}",
-                    ench.getDescriptionId(), describe(a), describe(b), level, target,
-                    vanillaMax, apothMax < 0 ? "n/a" : Integer.valueOf(apothMax), target, tagKeys(out));
+                    "[锻造者宝石] 附魔书直升(多词条) | 可升级集合={} | 明细={} | 左={} | 右={} | 实际改动={} | cost={} | 输出NBT={}",
+                    candidates.keySet(), detail(candidates, changes, maxes),
+                    describeIds(leftLevels), describeIds(rightLevels),
+                    UpgradePlan.describe(changes), cost, tagKeys(out));
             }
         }
         catch (RuntimeException | LinkageError ignored) {
             // 铁砧是热路径:任何异常都不能影响原版行为
         }
+    }
+
+    /** 附魔表 → 以注册名为键的两张表;{@code byId} 允许为 {@code null}(只需等级时)。 */
+    private static void index(Map<Enchantment, Integer> source,
+                              Map<String, Integer> levels,
+                              Map<String, Enchantment> byId) {
+        for (Map.Entry<Enchantment, Integer> entry : source.entrySet()) {
+            String id = idOf(entry.getKey());
+            levels.put(id, entry.getValue());
+            if (byId != null) {
+                byId.put(id, entry.getKey());
+            }
+        }
+    }
+
+    /** 附魔的稳定 id:注册名;极端情况下(未注册)退回 descriptionId。 */
+    private static String idOf(Enchantment ench) {
+        ResourceLocation key = BuiltInRegistries.ENCHANTMENT.getKey(ench);
+        return key != null ? key.toString() : ench.getDescriptionId();
     }
 
     // ------------------------------------------------------------------
@@ -227,15 +288,29 @@ public final class ForgerGemAnvilHandler {
         return now - last >= LOG_INTERVAL_NS && LAST_LOG.compareAndSet(last, now);
     }
 
-    private static String describe(Map<Enchantment, Integer> enchants) {
-        StringBuilder sb = new StringBuilder("{");
-        for (Map.Entry<Enchantment, Integer> entry : enchants.entrySet()) {
+    /** 可升级集合的逐条明细:{@code id N->T (vanillaMax=X, apothMax=Y)}。 */
+    private static String detail(Map<String, Integer> candidates,
+                                 Map<String, Integer> changes,
+                                 Map<String, int[]> maxes) {
+        StringBuilder sb = new StringBuilder("[");
+        for (Map.Entry<String, Integer> entry : candidates.entrySet()) {
             if (sb.length() > 1) {
                 sb.append(", ");
             }
-            sb.append(entry.getKey().getDescriptionId()).append('=').append(entry.getValue());
+            String id = entry.getKey();
+            int[] max = maxes.get(id);
+            Integer target = changes.get(id);
+            sb.append(id).append(' ').append(entry.getValue()).append("->")
+                .append(target != null ? target : entry.getValue())
+                .append(" (vanillaMax=").append(max == null ? "?" : max[0])
+                .append(", apothMax=").append(max == null || max[1] < 0 ? "n/a" : max[1])
+                .append(')');
         }
-        return sb.append('}').toString();
+        return sb.append(']').toString();
+    }
+
+    private static String describeIds(Map<String, Integer> levels) {
+        return UpgradePlan.describe(levels);
     }
 
     private static String tagKeys(ItemStack stack) {

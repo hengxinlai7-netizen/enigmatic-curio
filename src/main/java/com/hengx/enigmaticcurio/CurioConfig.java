@@ -79,7 +79,7 @@ public final class CurioConfig {
             .define("adventureCharmMining", true);
         ADVENTURE_CHARM_CONVERT = b.comment("手持冒险者徽章死亡自动转化绝望者徽章。默认 true。")
             .define("adventureCharmConvert", true);
-        FORGER_GEM_MAX = b.comment("锻造者宝石:铁砧两本同级同附魔书直接升满级。默认 true。")
+        FORGER_GEM_MAX = b.comment("锻造者宝石:铁砧上两本书共有且同为一级的每个附魔都直接升满级(支持多词条书)。默认 true。")
             .define("forgerGemMax", true);
         SCALE_ENABLED = b.comment("万钧之护:总开关。关掉后雷击与加成都不生效,完全回到扩展原样。默认 true。")
             .define("scaleEnabled", true);
