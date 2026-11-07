@@ -22,9 +22,28 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
  *       默认 = 锁值;只受**外部扣血**下降,<b>回血一律无效</b>;</li>
  *   <li><b>真血条</b>:只负责"生命上限(属性)与生命值加成",当前血量每 tick 被同步成假血条的值,
  *       所以界面上看到的就是假血条;</li>
- *   <li>受伤走假血条:不扣真血,只扣假血;假血 ≤ 0 时才真正死亡;</li>
+ *   <li><b>受伤优先级</b>:{@code 伤害吸收(金心)→ 假血条 → 真血(死亡)},见下一节;</li>
+ *   <li>受伤走假血条:不扣真血;假血 ≤ 0 时才真正死亡;</li>
  *   <li>假血条上限 = 当前最大生命({@code setHealth} 自己会夹),生命上限变动自动反映。</li>
  * </ul>
+ *
+ * <h2>伤害结算顺序:吸收 → 假血 → 真血(1.20.1 实测)</h2>
+ * <p><b>原版扣伤害吸收的确切位置</b>:{@code net.minecraft.world.entity.player.Player#actuallyHurt}
+ * (以及父类 {@code net.minecraft.world.entity.LivingEntity#actuallyHurt},两者的字节码这一段完全一致)。</p>
+ * <pre>
+ *   protected void actuallyHurt(DamageSource, float)          // javap -p -c 序号
+ *     11: invokestatic ForgeHooks.onLivingHurt(this, src, amount)  &lt;-- LivingHurtEvent 在这里(最开头)
+ *     18: ifgt 22 / 21: return        &lt;-- 事件被 cancel ⇒ 函数直接返回,后面全都不会执行
+ *     25: getDamageAfterArmorAbsorb                              &lt;-- ① 护甲
+ *     32: getDamageAfterMagicAbsorb                              &lt;-- ② 保护附魔
+ *     38: getAbsorptionAmount / 41: fsub / 43: Math.max(.,0)      &lt;-- ③ 吸收:先扣金心
+ *     56: setAbsorptionAmount(getAbsorptionAmount() - 吸收量)
+ *     61: invokestatic ForgeHooks.onLivingDamage(this, src, 溢出) &lt;-- LivingDamageEvent 只拿到溢出量
+ *    147: setHealth(getHealth() - 溢出)                          &lt;-- ④ 最后才动真血
+ * </pre>
+ * <p>结论:假血条要 {@code setCanceled(true)} 拦真血,就<b>必须自己按 ③ 的顺序先扣 absorption</b>,
+ * 否则金心永远不会被消耗(旧版的 bug)。分配算术抽到 {@link BloodbathDamage}(纯函数,可脱离
+ * 游戏单测)。真实血量全程不动,所以吸收伤害也不可能穿透到真血致死。</p>
  *
  * <h2>必须同时做到的五个坑(踩过的)</h2>
  * <ol>
@@ -265,7 +284,10 @@ public final class BerserkCharmHandler {
                 killLocked(player);
                 return;
             }
-            // 真血条只负责显示假血条的值(生命上限仍由属性决定)
+            // 真血条只负责显示假血条的值(生命上限仍由属性决定)。
+            // 注意:这里只碰 setHealth,**绝不碰 absorption** —— 1.20.1 里玩家的 absorption 是
+            // Player 的同步数据 DATA_PLAYER_ABSORPTION_ID,和 DATA_HEALTH_ID 是两回事,setHealth
+            // 不会动它,所以金心在每 tick 同步时会原样保留。
             if (Math.abs(player.getHealth() - fake) > 1.0E-3F) {
                 player.setHealth(fake);
             }
@@ -277,7 +299,19 @@ public final class BerserkCharmHandler {
 
     // ------------------------------------------------------------------ 受伤 / 回血
 
-    /** 外部扣血 → 扣假血条(真血不动)。 */
+    /**
+     * 外部扣血 → <b>先扣伤害吸收(金心),溢出的部分再扣假血条</b>;真实血量永远不动。
+     *
+     * <p>为什么吸收要自己扣:见类注释里的字节码 —— {@code Player#actuallyHurt} 里
+     * {@code ForgeHooks.onLivingHurt}(即本事件)在**方法最开头**,吸收代码在它**后面**;
+     * 我们一 cancel,原版的吸收结算就整体被跳过(旧版"金心永不消耗"的根因)。</p>
+     *
+     * <p>为什么不用"放行给原版扣吸收":{@code LivingHurtEvent} 拿到的是**护甲/保护附魔减免之前**的
+     * 伤害,原版随后会先算 {@code getDamageAfterArmorAbsorb}/{@code getDamageAfterMagicAbsorb}
+     * 再和 absorption 相减;想精确地"只放行吸收那一段、其余转假血"就必须预测这两步的减免结果,
+     * 而它们在事件里看不到(还存在自定义护甲公式的模组)。只要溢出量 > 0,放行就必然有真血损失
+     * —— 与"假血 ≤0 才死"冲突。所以这里选**自己扣**:顺序固定、结果可复算、真血零风险。</p>
+     */
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onLivingHurt(LivingHurtEvent event) {
         try {
@@ -287,32 +321,70 @@ public final class BerserkCharmHandler {
             if (!barActive(player)) {
                 return;
             }
-            float fake = fakeHealth(player);
             float amount = event.getAmount();
-            // 真血一点不动
+            if (!(amount > 0.0F) || !Float.isFinite(amount)) {
+                // 0 / 负数 / NaN:没东西可扣,直接放行给原版(不能因为脏数据把人弄死)
+                return;
+            }
+            float absorption = player.getAbsorptionAmount();
+            BloodbathDamage.Split split = BloodbathDamage.split(absorption, amount);
+            // ① 金心先挨打。Player#setAbsorptionAmount 写的是同步数据 DATA_PLAYER_ABSORPTION_ID,
+            //    所以客户端的金心 HUD 会跟着掉,和原版表现一致。
+            if (split.absorbed > 0.0F) {
+                player.setAbsorptionAmount(Math.max(0.0F, absorption - split.absorbed));
+            }
+            // ② 这次伤害整体由假血条接管:真血一点不动,吸收也不会穿透到真血
             event.setAmount(0.0F);
             event.setCanceled(true);
-            setFakeHealth(player, fake - amount);
-            DebugLog.info("[血战沙场] {} 假血条 {} -> {}", player.getName().getString(), fake, fake - amount);
-            if (fake - amount <= 0.0F) {
-                killLocked(player);
+            // ③ 只有金心吃不完的溢出部分才记到假血条上
+            if (split.overflow > 0.0F) {
+                float fake = fakeHealth(player);
+                boolean fatal = BloodbathDamage.isFatal(fake, split.overflow);
+                setFakeHealth(player, BloodbathDamage.after(fake, split.overflow));
+                DebugLog.info("[血战沙场] {} 伤害 {} / 吸收 {} → 吸收剩 {} ,假血条 {} -> {}",
+                    player.getName().getString(), amount, split.absorbed,
+                    Math.max(0.0F, absorption - split.absorbed), fake,
+                    BloodbathDamage.after(fake, split.overflow));
+                if (fatal) {
+                    killLocked(player);
+                }
+            }
+            else {
+                DebugLog.info("[血战沙场] {} 伤害 {} 全部被吸收吃下(吸收剩 {})",
+                    player.getName().getString(), amount, Math.max(0.0F, absorption - split.absorbed));
             }
         }
         catch (RuntimeException | LinkageError ignored) {
-            // 失败放行:按原版受伤结算
+            // 失败放行:按原版受伤结算(吸收也回到原版逻辑,不会丢)
         }
     }
 
     /**
-     * 回血一律无效(假血条不接受治疗)。
+     * 回血一律无效(假血条不接受治疗)—— <b>但这条拦不到伤害吸收,也不需要拦</b>。
      *
-     * <p><b>只在这个状态下拦</b>({@link #barActive}):存活、非濒死、假血数据存在、开关没关、
-     * 不在复活免疫窗口。这就是"复活后被无限吞治疗 → 反复死亡"那个死循环的闸门。</p>
+     * <p>1.20.1 的字节码事实:</p>
+     * <ul>
+     *   <li>{@code LivingEntity#heal(float)} 只做三件事:{@code ForgeEventFactory.onLivingHeal}
+     *       (就是本事件)→ 结果为 ≤0 则 return → {@code setHealth(health + amount)}。
+     *       它<b>完全不碰</b> {@code absorptionAmount};</li>
+     *   <li>金心只由 {@code net.minecraft.world.effect.AbsoptionMobEffect#addAttributeModifiers}
+     *       写入({@code setAbsorptionAmount(get + 4*(amplifier+1))}),移除时对称扣回。
+     *       喝金苹果 = 加吸收效果,走的是 {@code addEffect},<b>不经过 {@code heal()}</b>。</li>
+     * </ul>
+     * <p>所以取消本事件不可能吞掉金心/金苹果的吸收;吸收与再生是同一次金苹果给的两件东西,
+     * 被拦下的只有再生那部分(本来就该无效)。反过来,这里也绝不能为了"放过吸收"而放行真实
+     * 治疗 —— 见下面那道 {@link #barActive} 闸门的意义。</p>
+     *
+     * <p><b>只在这个状态下拦</b>:存活、非濒死、假血数据存在、开关没关、不在复活免疫窗口。
+     * 这就是"复活后被无限吞治疗 → 反复死亡"那个死循环的闸门。</p>
      */
     @SubscribeEvent
     public static void onLivingHeal(LivingHealEvent event) {
         try {
             if (!(event.getEntity() instanceof ServerPlayer player)) {
+                return;
+            }
+            if (!(event.getAmount() > 0.0F)) {
                 return;
             }
             if (!barActive(player)) {
