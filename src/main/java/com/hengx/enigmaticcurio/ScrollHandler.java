@@ -1,10 +1,7 @@
 package com.hengx.enigmaticcurio;
 
-import java.util.UUID;
-
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 
@@ -33,9 +30,14 @@ import net.minecraft.world.item.ItemStack;
  * {@code EnchantmentHelper#getSweepingDamageRatio}(SRG {@code m_44821_})抬到 {@code max(1.0, 原值)},
  * 于是横扫攻击按 100% 伤害结算。本模组把它还原成原版公式
  * ({@code mixin.EnchantmentHelperSweepMixin},priority 500 抢在扩展之前定值),
- * 作为交换,佩戴者直接获得 {@code generic.attack_damage} 上的百分比修饰符
- * ({@link CurioConfig#SCALE_ATTACK_DAMAGE_PERCENT},默认 +100%)。
+ * 作为交换,佩戴者造成的一切伤害按 {@link CurioConfig#SCALE_ATTACK_DAMAGE_PERCENT}
+ * (默认 100%)乘法提升,口径与扩展「地狱刃片」一致 —— 见
+ * {@link ScrollDamageHandler}({@code LivingHurtEvent},直接攻击类型 ×2.0、其余 ×1.5)。
  * 想要扩展原来的"只加横扫"手感,把 {@code scaleRestoreSweep} 设成 true 即可。
+ *
+ * <p><b>注意</b>:这里以前是给 {@code generic.attack_damage} 挂 {@code MULTIPLY_TOTAL}
+ * 属性修饰器(只加近战攻击力)。现已整体移除 —— 属性修饰器只作用于"攻击力"这一个数值,
+ * 箭矢/法术/爆炸等根本读不到它,达不到"全伤"的目的。</p>
  */
 public final class ScrollHandler {
 
@@ -50,11 +52,6 @@ public final class ScrollHandler {
      * <b>键不存在 = 开</b>(沿用扩展原行为)。
      */
     public static final String NBT_THUNDER_OFF = "enigmaticcurio:thunderOff";
-
-    /** 本模组的攻击伤害修饰符 UUID(只属于本模组)。 */
-    public static final UUID ATTACK_DAMAGE_UUID = UUID.fromString("6b1d4d2a-0f3c-4e77-9a51-2c8e7f0d3b14");
-
-    private static final String MODIFIER_NAME = "enigmaticcurio:thunder_scroll_attack_damage";
 
     /** {@code onEntityHurt} 期间"本次命中是否允许累积电荷":HEAD 处写、putInt 处读,同一次调用内完成。 */
     private static final ThreadLocal<Boolean> CHARGE_ALLOWED = ThreadLocal.withInitial(() -> Boolean.TRUE);
@@ -96,7 +93,10 @@ public final class ScrollHandler {
         }
     }
 
-    /** 攻击伤害加成百分比(0 = 不加成)。 */
+    /**
+     * 全伤加成百分比(0 = 不加成)。直接攻击类型按这个数值全额、其余类型半额,
+     * 与扩展「地狱刃片」的 {@code damageMultiplier} 口径相同。
+     */
     public static double attackDamagePercent() {
         try {
             return CurioConfig.SCALE_ATTACK_DAMAGE_PERCENT.get();
@@ -244,21 +244,15 @@ public final class ScrollHandler {
         }
     }
 
-    // ------------------------------------------------------------------ 攻击伤害加成
+    // ------------------------------------------------------------------ 全伤害加成(见 ScrollDamageHandler)
 
-    /** 攻击伤害修饰符:generic.attack_damage + MULTIPLY_TOTAL,数值 = 配置百分比 / 100。 */
-    public static AttributeModifier attackDamageModifier() {
-        return new AttributeModifier(ATTACK_DAMAGE_UUID, MODIFIER_NAME,
-            attackDamagePercent() / 100.0D, AttributeModifier.Operation.MULTIPLY_TOTAL);
-    }
-
-    /** 攻击伤害加成是否生效(总开关 + 数值不为 0)。 */
-    public static boolean attackDamageActive() {
+    /**
+     * 全伤加成是否生效:总开关 + 没选"恢复扩展横扫" + 数值不为 0。
+     *
+     * <p>判定与旧版属性修饰器完全一致,只是落点从 {@code generic.attack_damage} 换成了
+     * {@link ScrollDamageHandler} 的 {@code LivingHurtEvent} 乘法。</p>
+     */
+    public static boolean damageBoostActive() {
         return enabled() && !restoreSweep() && attackDamagePercent() != 0.0D;
-    }
-
-    /** 这叠东西是否应该挂攻击伤害修饰符(Curios 属性事件用)。 */
-    public static boolean attackDamageActiveFor(ItemStack stack) {
-        return attackDamageActive() && isScroll(stack);
     }
 }

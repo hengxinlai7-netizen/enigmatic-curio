@@ -88,7 +88,9 @@ public final class CurioConfig {
             .define("scaleLightning", true);
         SCALE_RESTORE_SWEEP = b.comment("是否恢复扩展原本的横扫 100% 加成。默认 false。")
             .define("scaleRestoreSweep", false);
-        SCALE_ATTACK_DAMAGE_PERCENT = b.comment("万钧之护:佩戴时获得的攻击伤害加成百分比(代替原本的横扫加成)。0 = 不加成。默认 100。")
+        SCALE_ATTACK_DAMAGE_PERCENT = b.comment("万钧之护:佩戴时造成的伤害加成百分比(代替原本的横扫加成),作用于全伤害。",
+                "口径与扩展「地狱刃片」一致:直接攻击类型(mob_attack / generic / player_attack)全额,其余伤害(箭矢、法术等)半额;",
+                "乘法叠加。默认 100 = 近战 ×2.0、其它 ×1.5。0 = 不加成。")
             .defineInRange("scaleAttackDamagePercent", 100.0D, -100.0D, 1000.0D);
         FOURTH_CURSE_FIX = b.comment("古旧书袋三书同持时修正第四诅咒。默认 true。")
             .define("fourthCurseFix", true);

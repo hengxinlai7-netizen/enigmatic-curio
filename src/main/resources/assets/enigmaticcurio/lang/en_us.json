@@ -32,7 +32,7 @@
 
   "tooltip.enigmaticcurio.cursed_ring.fourth": "With all three books in the Antique Bag, the fourth curse no longer reduces your damage",
 
-  "tooltip.enigmaticcurio.thunder.effect": "Attack damage +%s%% (replaces the original sweeping bonus)",
+  "tooltip.enigmaticcurio.thunder.effect": "All damage +%s%% (full for direct attacks, half for other damage; replaces the original sweeping bonus)",
   "tooltip.enigmaticcurio.thunder.lightning": "Ctrl + Left Click to toggle lightning · %s",
 
   "tooltip.enigmaticcurio.pearl.enchant": "Enchanting table (including Apotheosis): no lapis, plus one extra enchantment roll",

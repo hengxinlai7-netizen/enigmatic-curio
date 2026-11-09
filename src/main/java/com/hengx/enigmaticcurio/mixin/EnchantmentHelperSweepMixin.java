@@ -32,8 +32,13 @@ import net.minecraft.world.item.enchantment.EnchantmentHelper;
  *   <li>代价:priority 比 500 更晚的其它模组对**这一个方法**的 RETURN 回调,在戴卷轴时会被跳过。</li>
  * </ul>
  *
- * <p>卷轴的伤害来源于是换成 {@code generic.attack_damage} 的百分比修饰符
- * (见 {@code ScrollAttributeHandler} 与 {@link ScrollHandler#attackDamageModifier()})。</p>
+ * <p>卷轴的伤害加成早已不再走 {@code generic.attack_damage} 属性修饰器,而是
+ * {@link com.hengx.enigmaticcurio.ScrollDamageHandler} 在 {@code LivingHurtEvent} 上的乘法。
+ * 两者<b>不会互相覆盖</b>:本 mixin 只决定"横扫伤害按攻击力的百分之几算"
+ * (即 {@code getSweepingDamageRatio} 的返回值),伤害事件那边决定"最终伤害乘多少";
+ * 横扫伤害本身也是以 {@code player_attack} 类型打出去的,所以它同样会吃到
+ * {@code LivingHurtEvent} 的那一次乘法 —— 与旧版"攻击力 +100% 再乘原版横扫比例"的结果一致
+ * (旧:攻击力×2 → 横扫×2;新:横扫按原攻击力算 → 伤害×2)。</p>
  */
 @Mixin(value = EnchantmentHelper.class, priority = 500)
 public class EnchantmentHelperSweepMixin {

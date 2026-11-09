@@ -32,7 +32,7 @@
 
   "tooltip.enigmaticcurio.cursed_ring.fourth": "古旧书袋收齐倒转之启/无止之言/恩惠之典时,第四重咒不再削减伤害",
 
-  "tooltip.enigmaticcurio.thunder.effect": "攻击伤害 +%s%%(取代原本的横扫加成)",
+  "tooltip.enigmaticcurio.thunder.effect": "全伤害 +%s%%(直接攻击全额、其余伤害半额;取代原本的横扫加成)",
   "tooltip.enigmaticcurio.thunder.lightning": "Ctrl + 左键 切换雷击 · %s",
 
   "tooltip.enigmaticcurio.pearl.enchant": "附魔台(含神化)免青金石,并额外多给一次附魔",

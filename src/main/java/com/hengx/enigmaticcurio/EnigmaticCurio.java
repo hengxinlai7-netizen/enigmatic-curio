@@ -28,7 +28,7 @@ import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
  *   <li>末影之戒 / 末影箱:容量扩到 54 格(9x6);</li>
  *   <li>救赎之戒:不破损、隐藏背叛条、可与七咒之戒同戴(mixin);</li>
  *   <li>七咒之戒:古旧书袋收齐三书时修正第四重咒(mixin);</li>
- *   <li>万钧之护卷轴:雷击可开关(Ctrl+左键)、攻击伤害加成可配置(mixin);</li>
+ *   <li>万钧之护卷轴:雷击可开关(Ctrl+左键)、加成改为「全伤害」乘法(与地狱刃片同口径);</li>
  *   <li>附魔师的珍珠:兼容神化附魔台;重铸台(神化 / 远古)与强化台不消耗材料与符石(mixin)。</li>
  * </ul>
  */
@@ -52,28 +52,11 @@ public class EnigmaticCurio {
         MinecraftForge.EVENT_BUS.register(BagHudSync.class);
         MinecraftForge.EVENT_BUS.register(ForgerGemAnvilHandler.class);
         MinecraftForge.EVENT_BUS.register(ItemTooltips.class);
-        registerCuriosEvents();
+        // 万钧之护:全伤害加成(LivingHurtEvent,口径与扩展地狱刃片一致)
+        MinecraftForge.EVENT_BUS.register(ScrollDamageHandler.class);
         FMLJavaModLoadingContext.get().getModEventBus().addListener(MagnetRangeHandler::onCommonSetup);
         // 珍珠:启动时用反射核对一次注入目标是否存在(不受 debugLog 门控,缺失/改名会直接进日志)
         FMLJavaModLoadingContext.get().getModEventBus().addListener(PearlHandler::probeTargets);
         MagnetRangeHandler.apply();
-    }
-
-    /**
-     * Curios 相关的事件注册。
-     *
-     * <p>{@link ScrollAttributeHandler} 引用了 Curios 的类型,所以必须"先确认 Curios 已加载,
-     * 再去触碰这个类",否则缺 Curios 时会 NoClassDefFoundError。</p>
-     */
-    private static void registerCuriosEvents() {
-        try {
-            if (!net.minecraftforge.fml.ModList.get().isLoaded("curios")) {
-                return;
-            }
-            MinecraftForge.EVENT_BUS.register(new ScrollAttributeHandler());
-        }
-        catch (RuntimeException | LinkageError e) {
-            DebugLog.warn("[饰品增强] 跳过 Curios 属性事件注册: {}", e.toString());
-        }
     }
 }
