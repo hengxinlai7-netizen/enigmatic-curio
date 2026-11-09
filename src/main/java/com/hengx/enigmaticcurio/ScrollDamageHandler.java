@@ -122,7 +122,8 @@ public final class ScrollDamageHandler {
                 return;
             }
             // ③ 与地狱刃片同口径:直接攻击类型全额,其余半额;都是乘法
-            double factor = (isNemesis(source) ? 1.0D : NON_NEMESIS_FACTOR) * percent / 100.0D;
+            // 1.1.8:不再分两档 —— 所有伤害类型一律全额增伤。
+            double factor = percent / 100.0D;
             double multiplier = 1.0D + factor;
             if (!(multiplier > 0.0D)) {
                 return;   // 负到把伤害抹平(percent 下限 -100)就按 0 处理,不做反向加血
