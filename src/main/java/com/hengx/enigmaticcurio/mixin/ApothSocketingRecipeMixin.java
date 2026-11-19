@@ -57,6 +57,16 @@ import dev.shadowsoffire.apotheosis.adventure.socket.SocketingRecipe;
  * <p>目标类是第三方模组 ⇒ {@code remap = false}、{@code require = 0},
  * 并登记在 {@code enigmaticcurio.optional.mixins.json}({@code required:false} / {@code defaultRequire:0}),
  * 玩家没装神化时整份配置静默跳过。</p>
+ *
+ * <h2>{@code @Redirect} 处理器必须是非 static</h2>
+ * <p>{@code SocketingRecipe#m_5874_} 是<b>实例方法</b>,而 Mixin 的
+ * {@code Injector.checkTargetModifiers} 会比对处理器与目标方法的 {@code static} 修饰符。
+ * 早期版本把处理器写成 {@code private static},结果整份注入被拒:</p>
+ * <pre>
+ * InvalidInjectionException: 'static' modifier of handler method does not match target
+ *   in SocketingRecipe::enigmaticcurio$safeSetGem
+ * </pre>
+ * <p>于是这段保护<b>一次都没生效过</b>。改成实例方法后即可正常注入。</p>
  */
 @Mixin(value = SocketingRecipe.class, remap = false)
 public abstract class ApothSocketingRecipeMixin {
@@ -66,7 +76,9 @@ public abstract class ApothSocketingRecipeMixin {
         at = @At(value = "INVOKE", target = "Ljava/util/List;set(ILjava/lang/Object;)Ljava/lang/Object;"),
         remap = false,
         require = 0)
-    private static Object enigmaticcurio$safeSetGem(List<Object> gems, int socket, Object gem) {
+    // 必须是非 static:目标方法 SocketingRecipe#m_5874_ 是实例方法,
+    // Mixin 会比对 static 修饰符,写成 static 会导致整份注入被拒(见类注释)。
+    private Object enigmaticcurio$safeSetGem(List<Object> gems, int socket, Object gem) {
         try {
             if (gems == null) {
                 return null;

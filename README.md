@@ -28,3 +28,18 @@ export GRADLE_USER_HOME=<gradle home>
 ## 协议
 
 MIT
+
+## 更新记录
+
+### 1.1.9
+
+* **修复「万钧之护」雷击开关失效**：扩展的雷击分两段 —— `onEntityHurt` 累积电荷、
+  `onTick` 电荷过 1200 才真正劈雷。以前只拦了第一段，所以目标身上残留的电荷
+  （关开关前打出来的、别的路径写进去的、旧存档带过来的）照样会落雷。
+  现在落雷那一刻会再核一次开关，关掉即清零电荷、绝不落雷；被拦下的攻击也会顺手
+  清掉目标身上的旧电荷。另加一层不依赖 mixin 的兜底（`LivingHurtEvent` LOWEST）。
+* 配置 `enigmaticcurio.addons.scaleLightning` / `scaleEnabled` **改完立即生效**，不用重启；
+  启动与重载时各打一条当前值（`debugLog=true` 时可见）。
+* 新增启动自检：扩展的注入目标（`onEntityHurt` / `onTick`）缺失时会在日志里明确报出来。
+* 修正日志格式：全项目的 `%s` 此前被原样打印（slf4j 只认 `{}`），现在会正常替换成实际值。
+* 卷轴 tooltip：配置里关掉雷击时明确提示「点开关不会恢复」。

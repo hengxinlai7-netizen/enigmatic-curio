@@ -34,6 +34,7 @@
 
   "tooltip.enigmaticcurio.thunder.effect": "全伤害 +%s%%(直接攻击全额、其余伤害半额;取代原本的横扫加成)",
   "tooltip.enigmaticcurio.thunder.lightning": "Ctrl + 左键 切换雷击 · %s",
+  "tooltip.enigmaticcurio.thunder.config_off": "雷击已被配置文件关闭(scaleEnabled / scaleLightning = false),这里点开关不会恢复",
 
   "tooltip.enigmaticcurio.pearl.enchant": "附魔台(含神化)免青金石,并额外多给一次附魔",
   "tooltip.enigmaticcurio.pearl.reforge": "重铸台(神化 / 远古)与强化台不消耗材料与符石",

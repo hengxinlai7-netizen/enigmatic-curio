@@ -4,6 +4,7 @@ import com.mojang.logging.LogUtils;
 import org.slf4j.Logger;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 
 /**
@@ -29,6 +30,8 @@ import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
  *   <li>救赎之戒:不破损、隐藏背叛条、可与七咒之戒同戴(mixin);</li>
  *   <li>七咒之戒:古旧书袋收齐三书时修正第四重咒(mixin);</li>
  *   <li>万钧之护卷轴:雷击可开关(Ctrl+左键)、加成改为「全伤害」乘法(与地狱刃片同口径);</li>
+ *   <li><b>1.1.9</b>:万钧之护的雷击开关现在同时拦「累积电荷」和「真正落雷」两段
+ *       (以前只拦累积,残留在目标身上的电荷照样会劈下来 —— 即"关了雷击还能打出来");</li>
  *   <li>附魔师的珍珠:兼容神化附魔台;重铸台(神化 / 远古)与强化台不消耗材料与符石(mixin)。</li>
  * </ul>
  */
@@ -54,7 +57,16 @@ public class EnigmaticCurio {
         MinecraftForge.EVENT_BUS.register(ItemTooltips.class);
         // 万钧之护:全伤害加成(LivingHurtEvent,口径与扩展地狱刃片一致)
         MinecraftForge.EVENT_BUS.register(ScrollDamageHandler.class);
+        // 万钧之护:雷击开关的兜底闸(不依赖 mixin 注入点是否还在,见 ScrollLightningGuard)
+        MinecraftForge.EVENT_BUS.register(ScrollLightningGuard.class);
         FMLJavaModLoadingContext.get().getModEventBus().addListener(MagnetRangeHandler::onCommonSetup);
+        // 万钧之护:雷击开关自检(只在 -Denigmaticcurio.selftest=lightning 时注册,正式游戏里不参与)
+        LightningSelfTest.register();
+        // 万钧之护:配置当前值(加载 / 热重载各打一条,受 debugLog 门控)
+        FMLJavaModLoadingContext.get().getModEventBus().addListener(ConfigLogHandler::onLoading);
+        FMLJavaModLoadingContext.get().getModEventBus().addListener(ConfigLogHandler::onReloading);
+        // 万钧之护:启动自检扩展的两个注入目标还在不在(改名/改版会直接进日志)
+        FMLJavaModLoadingContext.get().getModEventBus().addListener((FMLCommonSetupEvent event) -> ScrollHandler.probeAddonTargets());
         // 珍珠:启动时用反射核对一次注入目标是否存在(不受 debugLog 门控,缺失/改名会直接进日志)
         FMLJavaModLoadingContext.get().getModEventBus().addListener(PearlHandler::probeTargets);
         MagnetRangeHandler.apply();

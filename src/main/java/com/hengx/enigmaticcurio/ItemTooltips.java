@@ -132,6 +132,10 @@ public final class ItemTooltips {
                         // 逐件状态:全局雷击开关 且 这一件卷轴自己的开关,两者都开才算"开启"
                         boolean on = CurioConfig.SCALE_LIGHTNING.get() && !ScrollHandler.isThunderOff(stack);
                         add(lines, body("thunder.lightning", state(on)));
+                        // 1.1.9:配置里关掉雷击时,光靠 Ctrl+左键 是点不回来的,提示要说清楚
+                        if (!on && !CurioConfig.SCALE_LIGHTNING.get()) {
+                            add(lines, line("thunder.config_off"));
+                        }
                     }
                 }
                 case ENCHANTER_PEARL -> {

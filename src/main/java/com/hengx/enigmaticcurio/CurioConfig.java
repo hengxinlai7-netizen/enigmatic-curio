@@ -81,10 +81,13 @@ public final class CurioConfig {
             .define("adventureCharmConvert", true);
         FORGER_GEM_MAX = b.comment("锻造者宝石:铁砧上两本书共有且同为一级的每个附魔都直接升满级(支持多词条书)。默认 true。")
             .define("forgerGemMax", true);
-        SCALE_ENABLED = b.comment("万钧之护:总开关。关掉后雷击与加成都不生效,完全回到扩展原样。默认 true。")
+        SCALE_ENABLED = b.comment("万钧之护:总开关。关掉后雷击与加成都不生效,完全回到扩展原样。默认 true。",
+                "改完立即生效(不需要重启游戏);启动/重载时会在日志里打一条当前值(需 debugLog=true)。")
             .define("scaleEnabled", true);
-        SCALE_LIGHTNING = b.comment("万钧之护:雷击效果。关掉后攻击不再累积电荷、不会再落雷(护甲穿透照旧)。",
-                "除此之外每一件卷轴还能单独用 Ctrl+左键 切换(NBT enigmaticcurio:thunderOff)。默认 true。")
+        SCALE_LIGHTNING = b.comment("万钧之护:雷击效果。关掉后攻击不再累积电荷、目标身上残留的电荷也会被清掉,",
+                "到落雷那一刻还会再核一次开关 —— 所以关掉之后一定不会再有雷(护甲穿透照旧)。默认 true。",
+                "除此之外每一件卷轴还能单独用 Ctrl+左键 切换(NBT enigmaticcurio:thunderOff)。",
+                "1.1.9 修复:以前只拦「累积电荷」,不拦「落雷」,所以残留电荷照样会劈下来。")
             .define("scaleLightning", true);
         SCALE_RESTORE_SWEEP = b.comment("是否恢复扩展原本的横扫 100% 加成。默认 false。")
             .define("scaleRestoreSweep", false);
