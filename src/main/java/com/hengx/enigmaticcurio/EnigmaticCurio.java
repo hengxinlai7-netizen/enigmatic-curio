@@ -62,6 +62,8 @@ public class EnigmaticCurio {
         FMLJavaModLoadingContext.get().getModEventBus().addListener(MagnetRangeHandler::onCommonSetup);
         // 万钧之护:雷击开关自检(只在 -Denigmaticcurio.selftest=lightning 时注册,正式游戏里不参与)
         LightningSelfTest.register();
+        // 书袋效果:服务端反射/枚举/排序自检(只在 -Denigmaticcurio.selftest=bag 时注册,正式游戏里不参与)
+        BagSelfTest.register();
         // 万钧之护:配置当前值(加载 / 热重载各打一条,受 debugLog 门控)
         FMLJavaModLoadingContext.get().getModEventBus().addListener(ConfigLogHandler::onLoading);
         FMLJavaModLoadingContext.get().getModEventBus().addListener(ConfigLogHandler::onReloading);

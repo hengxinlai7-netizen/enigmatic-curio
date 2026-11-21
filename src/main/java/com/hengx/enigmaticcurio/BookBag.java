@@ -58,6 +58,79 @@ public final class BookBag {
         return !findBook(player, itemId).isEmpty();
     }
 
+    // ------------------------------------------------------------------ 1.1.9:枚举袋内全部书
+
+    /**
+     * 1.1.9:**枚举古旧书袋里现有的每一本书**(而不是按白名单一个个问)。
+     *
+     * <p>为什么要枚举:{@link BagHudEffects} 现在要把"袋里所有书"都列出来(有效果的写效果,
+     * 没效果的写「仅可存放,无加成」),白名单只决定文案,不决定列不列。</p>
+     *
+     * <p>实现与扩展自己一致:拿 {@code AntiqueBagCapability.INVENTORY} 能力 →
+     * {@code IAntiqueBagHandler} → {@code getSlots()}/{@code getBook(i)}(见 {@link #contents(Player)})。
+     * 和 {@code com.qoocies.goeticlegacy.utils.enigmaticaddons.EnigmaticAddonsBookBagHelper#getAllItems}
+     * 走的是同一套能力,所以诡厄那边认的书袋内容和我们这里的判定完全同源。</p>
+     *
+     * <p>缺扩展 / 无书袋 / 反编译不匹配 ⇒ 返回空表,绝不抛异常。</p>
+     */
+    public static List<ItemStack> booksInBag(Player player) {
+        BagState state = contents(player);
+        return state.present() ? state.books() : List.of();
+    }
+
+    /**
+     * 1.1.9:玩家身上(或末影箱里)有没有古旧书袋 —— 与扩展 {@code findBookInBag} 的前置判定逐字对应。
+     *
+     * <p>反编译 {@code SuperAddonHandler.findBookInBag(Player, Item)} 的头两句是:
+     * <pre>
+     * if (!SuperpositionHandler.hasItem(player, EnigmaticAddonItems.ANTIQUE_BAG)
+     *     &amp;&amp; !player.getEnderChestInventory().hasAnyOf(Set.of(ANTIQUE_BAG)))
+     *     return ItemStack.EMPTY;      // 书袋既不在身上也不在末影箱 ⇒ 一定找不到书
+     * </pre>
+     * 也就是说"书袋不在(身上 + 末影箱)"是"书一定不在袋里"的充分条件。现在改成枚举袋内全部书之后,
+     * 这个前置判定仍然要先问一次:书袋能力挂在**玩家实体**上,玩家把书袋丢掉/放进箱子后能力里
+     * 还可能留着旧内容,不先判定就会把"已经不在身上的书袋"的内容显示出来。</p>
+     */
+    public static boolean hasBag(Player player) {
+        if (player == null) {
+            return false;
+        }
+        Item bag = bagItem();
+        if (bag == null) {
+            return false;
+        }
+        if (Superposition.legacyHasItem(player, bag)) {
+            return true;
+        }
+        // 末影箱那一路(与扩展同一判据)。集合只建一次:每秒每玩家都要问,别每次新建 Set。
+        java.util.Set<Item> singleton = bagSingleton;
+        return singleton != null && player.getEnderChestInventory().hasAnyOf(singleton);
+    }
+
+    /** 书袋物品 + 单元素 Set 的解析结果(懒解析一次;第一次 tick 时注册表早已冻结)。 */
+    private static Item bagItem;
+    private static java.util.Set<Item> bagSingleton;
+    private static boolean bagResolved;
+
+    private static Item bagItem() {
+        if (bagResolved) {
+            return bagItem;
+        }
+        bagResolved = true;
+        try {
+            Item found = ForgeRegistries.ITEMS.getValue(new ResourceLocation(BAG_ID));
+            if (found != null && found != Items.AIR) {
+                bagItem = found;
+                bagSingleton = java.util.Set.of(found);
+            }
+        }
+        catch (RuntimeException | LinkageError ignored) {
+            bagItem = null;
+            bagSingleton = null;
+        }
+        return bagItem;
+    }
+
     /** 反射调用扩展的 {@code SuperAddonHandler.findBookInBag}。 */
     private static ItemStack findBookInBag(Player player, Item item) {
         try {

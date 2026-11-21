@@ -1,8 +1,8 @@
 package com.hengx.enigmaticcurio;
 
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -18,26 +18,25 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraftforge.fml.ModList;
 import net.minecraftforge.registries.ForgeRegistries;
 
 /**
- * 古旧书袋里"会提供加成"的物品清单 + 每条的加成文本。
+ * 古旧书袋里"袋内每一本书 + 它的加成文本"(**服务端计算**,客户端只显示)。
  *
- * <p>移植自主模组 {@code BagHudEffects}(1.1.19/1.2.6e 版),只去掉主模组**自己新增的瓶子**
- * (瓶装历史迷雾 / 灵界之光 / 冥河之水 / 战争迷雾 / 太阳 / 渔获瓶 / 睡前读物)——
- * 本模组不新增物品,那些条目在这里没有意义。</p>
+ * <p>1.1.9 起与主模组 {@code enigmatic-enhance 4.8.4} 的书袋显示重构对齐:</p>
+ * <ol>
+ *   <li><b>枚举袋内全部书</b>({@link BookBag#booksInBag(Player)}),白名单只决定文案 ——
+ *       能放进袋子但没效果的书也会被列出来,标「仅可存放,无加成」;</li>
+ *   <li>书 → 效果文本的注册表在 {@link BookEffects}(只收录本模组运行环境里真实存在的
+ *       本体 / 扩展 / 诡厄书,主模组自建的 7 件物品不收录);</li>
+ *   <li>排序:有效果的在前 → 未收录其次 → 无加成最后,段内按书 id 稳定排序;同一 id 只算一条;</li>
+ *   <li>显示:属性名本地化、乘法转百分比、tick 转秒、超 {@link #MAX_LINES} 条截断。</li>
+ * </ol>
  *
- * <h2>清单依据(逐条反编译核对)</h2>
- * 两类判定方式:
- * <ul>
- *   <li><b>显式读袋</b>:{@code SuperAddonHandler#findBookInBag(player, item)} —— 直接扫袋子里的书;</li>
- *   <li><b>隐式读袋</b>:{@code SuperpositionHandler#hasItem(player, item)} —— 扩展给这个方法打了
- *       {@code MixinSuperpositionHandler#hasItemMix}:对 {@code AntiqueBag.isBook(...)} 认的物品,
- *       袋里有也算"持有"。所以凡是"用 hasItem 判定某本手册"的效果,书在袋里同样生效。</li>
- * </ul>
- *
- * <h2>1.1.19:魔法石英花的随机属性</h2>
+ * <h2>魔法石英花</h2>
  * 石英花的随机属性**不在物品 NBT 里结算**,而是由扩展把"玩家 → 当前修饰符集合 → 剩余 tick"登记在
  * {@code auviotre.enigmatic.addon.contents.items.ArtificialFlower.PLAYER_ATTRIBUTE_MAP} 里
  * (onTick 每 tick 把 Integer 减 1,≤1 时从玩家属性表移除)。这里在**服务端**用反射只读它,
@@ -58,10 +57,9 @@ public final class BagHudEffects {
         }
     }
 
-    private static final String LEGACY = "enigmaticlegacy:";
     private static final String ADDONS = "enigmaticaddons:";
 
-    /** 所有条目翻译键的前缀。 */
+    /** 所有条目翻译键的前缀(书本身的文案走 {@code baghud.book.*},见 {@link BookEffects})。 */
     public static final String KEY_PREFIX = "tooltip.enigmaticcurio.bag.";
 
     /** 魔法石英花的物品 id。 */
@@ -70,7 +68,7 @@ public final class BagHudEffects {
     /** 石英花"没有激活属性"那一行。 */
     public static final String FLOWER_KEY = KEY_PREFIX + "effect.artificial_flower";
 
-    /** 石英花"某一条激活属性"那一行(参数:属性名、数值、类型、剩余 tick)。 */
+    /** 石英花"某一条激活属性"那一行(参数:属性名、数值、类型、剩余时长)。 */
     public static final String FLOWER_ATTR_KEY = KEY_PREFIX + "effect.artificial_flower_attr";
 
     /** 属性修饰符类型 → 语言键(后缀是 operation.name() 的小写)。 */
@@ -86,20 +84,21 @@ public final class BagHudEffects {
     /** 书袋物品自身 NBT:本模组写进去的效果缓存键。 */
     public static final String NBT_KEY = "enigmaticcurio:BagEffects";
 
-    private static final List<String> BOOKS = List.of(
-        LEGACY + "the_twist",
-        LEGACY + "the_infinitum",
-        ADDONS + "the_bless",
-        LEGACY + "the_acknowledgment",
-        ADDONS + "ode_to_living",
-        ADDONS + "false_justice",
-        FLOWER_ID,
-        LEGACY + "hunter_guidebook",
-        ADDONS + "sanguinary_handbook");
+    /** 参数分隔符(Unit Separator):不会出现在任何 id/数字里,客户端按它切回参数数组。 */
+    public static final String ARG_SEPARATOR = "\u001F";
 
-    /** 清单里的物品 id。 */
+    /** 1.1.9:tooltip 里最多显示多少条(多出来的折成"还有 N 条")。 */
+    public static final int MAX_LINES = 12;
+
+    /** 诡厄遗物的 modid(只用于 {@code ModList.isLoaded},不 import 它的任何类)。 */
+    public static final String GOETIC_MODID = "goeticlegacy";
+
+    /** 空结果(无书袋的玩家每个 tick 都走这里,不再每次 new 一个 ArrayList)。 */
+    private static final List<Entry> NO_ENTRIES = List.of();
+
+    /** 清单里的物品 id(给报告/自检用;书袋枚举本身不依赖它)。 */
     public static List<String> bookIds() {
-        return BOOKS;
+        return BookEffects.knownIds();
     }
 
     private BagHudEffects() {
@@ -107,55 +106,158 @@ public final class BagHudEffects {
 
     // ------------------------------------------------------------------ 服务端:收集
 
-    /** 服务端:算出这名玩家书袋里所有"会提供加成"的条目。 */
+    /** 服务端:算出这名玩家书袋里**所有书**的条目(有效果的写效果,没效果的写「无加成」)。 */
     public static List<Entry> collect(Player player) {
-        List<Entry> out = new ArrayList<>();
         if (player == null) {
-            return out;
+            return NO_ENTRIES;
         }
-        for (String id : BOOKS) {
+        // 书袋不在(身上 + 末影箱)时,能力里可能还留着旧内容 —— 与扩展 findBookInBag 的前置判定一致。
+        if (!BookBag.hasBag(player)) {
+            return NO_ENTRIES;
+        }
+        List<Entry> out = new ArrayList<>(16);
+
+        // 1.1.9:直接枚举袋子里的每个物品(而不是按 9 个 id 逐个问"在不在袋里")。
+        // 这样"能放进去但没效果"的书也能被列出来(见 BookEffects 的判定依据)。
+        LinkedHashSet<String> seen = new LinkedHashSet<>();
+        for (ItemStack stack : BookBag.booksInBag(player)) {
+            if (stack.isEmpty()) {
+                continue;
+            }
+            Item item = stack.getItem();
+            ResourceLocation id = ForgeRegistries.ITEMS.getKey(item);
+            if (id == null) {
+                continue;
+            }
+            String bookId = id.toString();
+            if (!seen.add(bookId)) {
+                continue; // 同一个 id 放了两本:只算一条(去重)
+            }
             try {
-                if (BookBag.findBook(player, new ResourceLocation(id)).isEmpty()) {
-                    continue;
-                }
-                switch (id) {
-                    case "enigmaticlegacy:the_twist" -> out.add(new Entry(id, key("twist"), "10%",
-                        flag(player, "isTheCursedOne")));
-                    case "enigmaticlegacy:the_infinitum" -> {
-                        boolean worthy = flag(player, "isTheWorthyOne");
-                        out.add(new Entry(id, key("infinitum"), "20%", worthy));
-                        out.add(new Entry(id, key("infinitum_lifesteal"), "10%", worthy));
-                    }
-                    case "enigmaticaddons:the_bless" -> out.add(new Entry(id, key("bless"),
-                        String.valueOf(blessInvulnerableTime()), true));
-                    case FLOWER_ID -> out.addAll(artificialFlower(player));
-                    case "enigmaticlegacy:the_acknowledgment" -> out.add(new Entry(id,
-                        key("the_acknowledgment"), "", true));
-                    case "enigmaticaddons:ode_to_living" -> out.add(new Entry(id, key("ode_to_living"), "",
-                        true));
-                    case "enigmaticaddons:false_justice" -> out.add(new Entry(id, key("false_justice"), "",
-                        true));
-                    case "enigmaticlegacy:hunter_guidebook" -> out.add(new Entry(id, key("hunter_guidebook"),
-                        "", true));
-                    case "enigmaticaddons:sanguinary_handbook" -> out.add(new Entry(id,
-                        key("sanguinary_handbook"), "", true));
-                    default -> out.add(new Entry(id, key(id.substring(id.indexOf(':') + 1)), "", true));
-                }
+                collectOne(player, bookId, stack, out);
             }
             catch (RuntimeException | LinkageError e) {
                 // 单本书算失败绝不拖垮整份清单(否则整条链路会静默罢工)
-                DebugLog.warn("[书袋] 统计 {} 失败,已跳过: {}", id, e.toString());
+                DebugLog.warn("[书袋] 统计 {} 失败,已跳过: {}", bookId, e.toString());
             }
         }
+
         // 本模组的"三书齐修正第四重咒":不属于任何一本物品,单独一条
         if (FourthCurseFix.active(player)) {
             out.add(new Entry("enigmaticcurio:fourth_curse", FOURTH_CURSE_KEY, "", true));
         }
+        if (out.isEmpty()) {
+            return NO_ENTRIES;
+        }
+        sortEntries(out);
         return out;
     }
 
-    private static String key(String name) {
-        return KEY_PREFIX + "effect." + name;
+    /** 单本书 → 若干条目(1.1.9 抽出,方便阅读与自检)。 */
+    private static void collectOne(Player player, String bookId, ItemStack stack, List<Entry> out) {
+        switch (bookId) {
+            case FLOWER_ID -> out.addAll(artificialFlower(player));
+            default -> {
+                List<BookEffects.Line> lines = BookEffects.linesFor(player, bookId);
+                if (lines != null && !lines.isEmpty()) {
+                    for (BookEffects.Line line : lines) {
+                        out.add(new Entry(bookId, line.key(), joinArgs(line.args()), true));
+                    }
+                }
+                else if (lines != null) {
+                    // 已登记但当前条件下没有可显示的内容:按"无加成"处理,避免出现空行
+                    out.add(new Entry(bookId, BookEffects.KEY_NO_BONUS, "", true));
+                }
+                else if (isGoeticPassiveBook(stack)) {
+                    // 诡厄的书、但我们没登记文案:如实说"未收录",而不是谎称没效果
+                    out.add(new Entry(bookId, BookEffects.KEY_UNKNOWN, "", true));
+                }
+                else {
+                    out.add(new Entry(bookId, BookEffects.KEY_NO_BONUS, "", true));
+                }
+            }
+        }
+    }
+
+    /** 参数用 Unit Separator 拼进 {@code value}(客户端按它切回数组)。 */
+    private static String joinArgs(String[] args) {
+        if (args == null || args.length == 0) {
+            return "";
+        }
+        return String.join(ARG_SEPARATOR, args);
+    }
+
+    /** 条目排序:有效果的在前、未收录其次、无加成最后;组内按书 id 稳定排序。 */
+    private static void sortEntries(List<Entry> entries) {
+        entries.sort(Comparator
+            .comparingInt((Entry e) -> rankOf(e.effectKey()))
+            .thenComparing(Entry::bookId));
+    }
+
+    private static int rankOf(String effectKey) {
+        if (BookEffects.KEY_NO_BONUS.equals(effectKey)) {
+            return 2;
+        }
+        if (BookEffects.KEY_UNKNOWN.equals(effectKey)) {
+            return 1;
+        }
+        return 0;
+    }
+
+    /**
+     * 1.1.9:超过 {@link #MAX_LINES} 条时,"还有 N 条"那一行用哪个语言键。
+     * <p>剩下的全是「无加成」→ {@code tooltip.enigmaticcurio.bag.more.no_bonus};
+     * 只要还剩一条有效果的,就用通用的 {@code ...bag.more}。
+     * 抽成纯函数是为了能在服务端自检里直接断言(客户端 tooltip 只在客户端跑)。</p>
+     */
+    public static String moreKey(List<Entry> entries, int shown) {
+        if (entries == null) {
+            return KEY_PREFIX + "more";
+        }
+        for (int i = Math.max(0, shown); i < entries.size(); i++) {
+            if (!BookEffects.KEY_NO_BONUS.equals(entries.get(i).effectKey())) {
+                return KEY_PREFIX + "more";
+            }
+        }
+        return KEY_PREFIX + "more.no_bonus";
+    }
+
+    /** 诡厄的被动书(反射判断,缺模组时恒 false)。 */
+    public static boolean isGoeticPassiveBook(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            return false;
+        }
+        Class<?> api = goeticPassiveApi();
+        if (api == null) {
+            return false;
+        }
+        try {
+            return api.isInstance(stack.getItem());
+        }
+        catch (Throwable t) {
+            return false;
+        }
+    }
+
+    private static Class<?> goeticPassiveApi;
+    private static boolean goeticResolved;
+
+    private static synchronized Class<?> goeticPassiveApi() {
+        if (goeticResolved) {
+            return goeticPassiveApi;
+        }
+        goeticResolved = true;
+        if (!ModList.get().isLoaded(GOETIC_MODID)) {
+            return null;
+        }
+        try {
+            goeticPassiveApi = Class.forName("com.qoocies.goeticlegacy.api.passive.IPassiveBook",
+                false, BagHudEffects.class.getClassLoader());
+        }
+        catch (Throwable t) {
+            goeticPassiveApi = null;
+        }
+        return goeticPassiveApi;
     }
 
     // ------------------------------------------------------------------ 魔法石英花
@@ -183,7 +285,7 @@ public final class BagHudEffects {
                             ResourceLocation id = ForgeRegistries.ATTRIBUTES.getKey(attribute);
                             out.add(new Entry(FLOWER_ID, FLOWER_ATTR_KEY,
                                 id == null ? "unknown" : id.toString(), true,
-                                amountText(value.getAmount()) + "|"
+                                flowerAmountText(value.getAmount(), value.getOperation()) + "|"
                                     + value.getOperation().name().toLowerCase(Locale.ROOT) + "|" + remaining));
                         }
                     }
@@ -206,7 +308,7 @@ public final class BagHudEffects {
     }
 
     private static Map<?, ?> playerAttributeMap(ServerPlayer player) throws ReflectiveOperationException {
-        Field field = flowerField();
+        java.lang.reflect.Field field = flowerField();
         if (field == null) {
             return null;
         }
@@ -218,11 +320,11 @@ public final class BagHudEffects {
         return perPlayer instanceof Map<?, ?> entries ? entries : null;
     }
 
-    private static Field flowerField;
+    private static java.lang.reflect.Field flowerField;
     private static boolean flowerResolved;
     private static boolean flowerReadFailed;
 
-    private static synchronized Field flowerField() {
+    private static synchronized java.lang.reflect.Field flowerField() {
         if (flowerResolved) {
             return flowerField;
         }
@@ -242,47 +344,109 @@ public final class BagHudEffects {
     /** 一条条目的显示形式(客户端 tooltip 用)。 */
     public static MutableComponent display(Entry entry) {
         if (FLOWER_ATTR_KEY.equals(entry.effectKey())) {
-            String[] parts = entry.detail().split("\\|", 3);
-            String amount = parts.length > 0 ? parts[0] : "";
-            String operation = parts.length > 1 ? parts[1] : "";
-            String remaining = parts.length > 2 ? parts[2] : "";
-            Component name = Component.literal(entry.value());
-            try {
-                Attribute attribute = ForgeRegistries.ATTRIBUTES.getValue(new ResourceLocation(entry.value()));
-                if (attribute != null) {
-                    name = Component.translatable(attribute.getDescriptionId());
-                }
-            }
-            catch (RuntimeException ignored) {
-                // 保留字面量
-            }
-            return Component.translatable(FLOWER_ATTR_KEY, name, amount,
-                Component.translatable(FLOWER_OP_KEY + operation), remaining);
+            // detail = "数值|operation|剩余tick";4.6.0 起手写扫描(不再每帧编译正则)
+            String detail = entry.detail();
+            int first = detail.indexOf('|');
+            int second = first < 0 ? -1 : detail.indexOf('|', first + 1);
+            String amount = first < 0 ? detail : detail.substring(0, first);
+            String operation = first < 0 ? ""
+                : (second < 0 ? detail.substring(first + 1) : detail.substring(first + 1, second));
+            String remaining = second < 0 ? "" : detail.substring(second + 1);
+            // 1.1.9:属性名本地化(原来是原始 id,如 goety:spell_potency)
+            return Component.translatable(FLOWER_ATTR_KEY, attributeName(entry.value()), amount,
+                Component.translatable(FLOWER_OP_KEY + operation), duration(remaining));
         }
+
+        // 1.1.9:统一的书本效果行(baghud.book.<ns>.<path>.lineN),参数放在 value 里
+        if (entry.effectKey().startsWith("baghud.book.")) {
+            if (BookEffects.KEY_NO_BONUS.equals(entry.effectKey())
+                || BookEffects.KEY_UNKNOWN.equals(entry.effectKey())) {
+                return Component.translatable(entry.effectKey(), bookName(entry.bookId()));
+            }
+            String[] args = splitArgs(entry.value());
+            Object[] formatted = new Object[args.length];
+            System.arraycopy(args, 0, formatted, 0, args.length);
+            return Component.translatable(entry.effectKey(), formatted);
+        }
+
         if (entry.value() == null || entry.value().isEmpty()) {
             return Component.translatable(entry.effectKey());
         }
         return Component.translatable(entry.effectKey(), entry.value());
     }
 
-    /** 数值文本:整数不带小数点、正数带 +;如 +20 / -0.5 / +0.125。 */
-    static String amountText(double amount) {
-        String number;
-        if (amount == Math.rint(amount) && Math.abs(amount) < 1.0E9D) {
-            number = String.valueOf((long) amount);
-        }
-        else {
-            number = String.format(Locale.ROOT, "%.4f", amount);
-            int end = number.length();
-            while (end > 1 && number.charAt(end - 1) == '0') {
-                end--;
+    /** 属性 id → 本地化名称;取不到就退回原始 id(绝不抛)。 */
+    public static Component attributeName(String attributeId) {
+        try {
+            Attribute attribute = ForgeRegistries.ATTRIBUTES.getValue(new ResourceLocation(attributeId));
+            if (attribute != null) {
+                return Component.translatable(attribute.getDescriptionId());
             }
-            if (end > 1 && number.charAt(end - 1) == '.') {
-                end--;
-            }
-            number = number.substring(0, end);
         }
-        return (amount >= 0.0D ? "+" : "") + number;
+        catch (RuntimeException ignored) {
+            // 保留字面量
+        }
+        return Component.literal(attributeId);
+    }
+
+    /** 书 id → 物品显示名;取不到退回 id。 */
+    public static Component bookName(String bookId) {
+        try {
+            Item item = ForgeRegistries.ITEMS.getValue(new ResourceLocation(bookId));
+            if (item != null && item != net.minecraft.world.item.Items.AIR) {
+                return item.getDescription();
+            }
+        }
+        catch (RuntimeException ignored) {
+            // 保留字面量
+        }
+        return Component.literal(bookId);
+    }
+
+    /** {@code "a\u001Fb\u001Fc"} → 参数数组(空串 → 空数组)。 */
+    static String[] splitArgs(String value) {
+        if (value == null || value.isEmpty()) {
+            return EMPTY_ARGS;
+        }
+        return value.split(ARG_SEPARATOR, -1);
+    }
+
+    private static final String[] EMPTY_ARGS = new String[0];
+
+    /**
+     * 剩余时长:不足 20 tick 打 tick,≥20 tick 打秒(一位小数)。
+     * <p>1.1.9:原来一律打 "N tick",20 秒会显示成 "400 tick"。文本走 lang,数字在这边算。</p>
+     */
+    public static Component duration(String remainingText) {
+        int ticks;
+        try {
+            ticks = (int) Double.parseDouble(remainingText.trim());
+        }
+        catch (RuntimeException ignored) {
+            return Component.literal(remainingText);
+        }
+        if (ticks < 20) {
+            return Component.translatable("baghud.time.ticks", String.valueOf(ticks));
+        }
+        String seconds = String.format(Locale.ROOT, "%.1f", ticks / 20.0D);
+        return Component.translatable("baghud.time.seconds", seconds);
+    }
+
+    /**
+     * 1.1.9:石英花修饰符数值的显示形式。
+     * <ul>
+     * <li>{@code MULTIPLY_BASE}/{@code MULTIPLY_TOTAL}:0.1 表示 +10% ⇒ 打成 {@code +10%};</li>
+     * <li>{@code ADDITION}:保留两位小数并带符号 ⇒ {@code +20.00} / {@code -0.50}。</li>
+     * </ul>
+     */
+    static String flowerAmountText(double amount, AttributeModifier.Operation operation) {
+        if (operation == AttributeModifier.Operation.MULTIPLY_BASE
+            || operation == AttributeModifier.Operation.MULTIPLY_TOTAL) {
+            double percent = amount * 100.0D;
+            String text = BookEffects.number(percent);
+            return (percent >= 0.0D ? "+" : "") + text + "%";
+        }
+        return String.format(Locale.ROOT, "%+.2f", amount);
     }
 
     // ------------------------------------------------------------------ 签名
@@ -414,50 +578,6 @@ public final class BagHudEffects {
         }
         catch (RuntimeException | LinkageError ignored) {
             return false;
-        }
-    }
-
-    // ------------------------------------------------------------------ 读取本体/扩展的真实数值(反射,缺模组安全返回)
-
-    /** 本体/扩展的布尔判定,如 isTheCursedOne / isTheWorthyOne。 */
-    private static boolean flag(Player player, String method) {
-        for (String owner : new String[] {
-            "com.aizistral.enigmaticlegacy.handlers.SuperpositionHandler",
-            "auviotre.enigmatic.addon.handlers.SuperAddonHandler" }) {
-            try {
-                Class<?> cls = Class.forName(owner, false, BagHudEffects.class.getClassLoader());
-                Object value = cls.getMethod(method, Player.class).invoke(null, player);
-                if (value instanceof Boolean b) {
-                    return b;
-                }
-            }
-            catch (Throwable ignored) {
-                // 该方法不在这个类里 / 模组缺失:试下一个
-            }
-        }
-        return false;
-    }
-
-    /** 恩惠之典在袋时的受击无敌帧(取扩展真实配置值)。 */
-    private static int blessInvulnerableTime() {
-        try {
-            Class<?> cls = Class.forName("auviotre.enigmatic.addon.contents.items.TheBless",
-                false, BagHudEffects.class.getClassLoader());
-            Object param = cls.getField("invulnerableTime").get(null);
-            Object value = param.getClass().getMethod("getValue").invoke(param);
-            return value instanceof Integer i ? i : parseInt(String.valueOf(value));
-        }
-        catch (Throwable t) {
-            return 0;
-        }
-    }
-
-    private static int parseInt(String text) {
-        try {
-            return (int) Double.parseDouble(text.replace("%", "").toLowerCase(Locale.ROOT));
-        }
-        catch (Throwable t) {
-            return 0;
         }
     }
 }

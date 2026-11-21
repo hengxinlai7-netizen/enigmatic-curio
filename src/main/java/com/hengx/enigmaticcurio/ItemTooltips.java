@@ -206,8 +206,15 @@ public final class ItemTooltips {
             return;
         }
         add(lines, line("bag.header"));
-        for (BagHudEffects.Entry entry : entries) {
-            add(lines, BagHudEffects.display(entry));
+        // 1.1.9:最多显示 BagHudEffects.MAX_LINES 条;多出来的折成一行"还有 N 条"。
+        // 服务端已经把"有效果的"排在前面、"无加成"排在后面,所以这里直接截尾即可。
+        int shown = Math.min(entries.size(), BagHudEffects.MAX_LINES);
+        for (int i = 0; i < shown; i++) {
+            add(lines, BagHudEffects.display(entries.get(i)));
+        }
+        if (entries.size() > shown) {
+            int rest = entries.size() - shown;
+            add(lines, Component.translatable(BagHudEffects.moreKey(entries, shown), String.valueOf(rest)));
         }
     }
 
