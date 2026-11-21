@@ -9,7 +9,7 @@
 
 **必需前置只有两个：神秘遗物 + Curios。**
 
-其余模组（神秘遗物扩展、神化、古物重铸、rs_integration、神秘佳肴）全部为**可选联动** ——
+其余模组（神秘遗物扩展、神化、古物重铸、神秘佳肴）全部为**可选联动** ——
 装上对应模组才会启用相关功能，没装时静默跳过，不影响启动。
 
 ## 功能
@@ -34,7 +34,6 @@
 | **可选** | 神秘遗物扩展 (Enigmatic Addons) | 1.2+，启用扩展饰品相关增强 |
 | **可选** | 神化 (Apotheosis) | 7.x，启用附魔台 / 重铸台 / 镶嵌相关兼容 |
 | **可选** | 古物重铸 (Ancient Reforging) | 1.0+ |
-| **可选** | rs_integration | 1.0+，启用 JEI 背包联动 |
 | **可选** | 神秘佳肴 (Enigmatic Delicacy) | 1.0+ |
 
 **可选模组一律通过独立的 `enigmaticcurio.optional.mixins.json` 注入**：
@@ -61,11 +60,16 @@ MIT
 ### 1.1.9
 
 * **前置收窄为「神秘遗物 + Curios」**：`mods.toml` 里 `enigmaticlegacy` / `curios` 改为
-  强制依赖，其余全部可选；补上 `ancientreforging` / `rs_integration` 的可选声明。
+  强制依赖，其余全部可选；补上 `ancientreforging` 的可选声明。
+* **移除 rs_integration 联动**：RS 集成那个「JEI 库存同步包带空堆栈导致客户端掉线」的问题
+  交由该模组作者处理，本模组不再注入其网络包。相关两个 mixin 与记账类已删除、
+  `rs_integration` 依赖声明一并去掉，`optional.mixins.json` 从 15 项回到 13 项。
 * **mixin 配置拆分**：主配置从 17 个瘦身到 5 个（只留原版 + 神秘遗物本体）；
   8 个扩展、3 个神化、1 个古物重铸的 mixin 全部移入
-  `enigmaticcurio.optional.mixins.json`，没装对应模组时静默跳过、不再刷
-  `@Mixin target ... was not found` 警告。
+  `enigmaticcurio.optional.mixins.json`，没装对应模组时只留一条
+  `@Mixin target ... was not found` 的 WARN，不会注入失败。
+* **修正日志占位符**：项目里混用了 slf4j 的 `{}` 和 `String.format` 的 `%s`，导致部分日志
+  原样打出 `{}` 而参数全丢（例如 `注入目标存在:{}#{}`）。`DebugLog` 现在统一把 `{}` 归一为 `%s`。
 * **修复「万钧之护」雷击开关失效**：扩展的雷击分两段 —— `onEntityHurt` 累积电荷、
   `onTick` 电荷过 1200 才真正劈雷。以前只拦了第一段，所以目标身上残留的电荷
   （关开关前打出来的、别的路径写进去的、旧存档带过来的）照样会落雷。

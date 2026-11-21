@@ -17,9 +17,7 @@
     "PearlReforgeMixin",
     "AugmentingSigilMixin",
     "AncientReforgeMixin",
-    "ApothSocketingRecipeMixin",
-    "RsiJeiInventoryEntryMixin",
-    "RsiJeiInventoryPacketMixin"
+    "ApothSocketingRecipeMixin"
   ],
   "client": [],
   "injectors": {

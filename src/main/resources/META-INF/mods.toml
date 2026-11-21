@@ -71,9 +71,3 @@ description='''
     versionRange="[1.0,)"
     ordering="NONE"
     side="BOTH"
-[[dependencies.enigmaticcurio]]
-    modId="rs_integration"
-    mandatory=false
-    versionRange="[1.0,)"
-    ordering="NONE"
-    side="BOTH"

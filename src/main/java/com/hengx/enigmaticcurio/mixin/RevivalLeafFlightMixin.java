@@ -59,7 +59,7 @@ import net.minecraft.world.entity.player.Player;
  * 所以 {@code @At} 的 target 串在运行期是<b>原样使用</b>的。扩展是第三方模组,发布 jar 里对 MC 成员的引用
  * 已经是 SRG 名({@code f_35936_} = mayfly、{@code f_35935_} = flying、{@code m_6885_} = onUpdateAbilities,
  * 见 {@code srg_to_official_1.20.1.tsrg}),因此这里直接写 SRG 名,和工程里
- * {@code EnchantmentHelperSweepMixin} / {@code RsiJeiInventoryEntryMixin} 的做法一致。
+ * {@code EnchantmentHelperSweepMixin} 的做法一致。
  * 写成官方名反而在运行期对不上(没有任何东西会去 remap 它)。</p>
  *
  * <h2>为什么这样不可能误伤别的飞行来源</h2>

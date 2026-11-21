@@ -67,11 +67,28 @@ public final class DebugLog {
             return format;
         }
         try {
-            return String.format(format, args);
+            return String.format(normalize(format), args);
         }
         catch (RuntimeException e) {
             // 格式串里混了裸 % 之类:退回原文 + 参数,至少信息不丢
-            return format + " " + Arrays.toString(args);
+            return normalize(format) + " " + Arrays.toString(args);
         }
+    }
+
+    /**
+     * 兼容 slf4j 风格的 {@code {}} 占位符。
+     *
+     * <p>项目里两种写法混用:多数调用点按 {@link String#format} 用 {@code %s},
+     * 但也有几十处按 slf4j 习惯写成 {@code {}}。{@code String.format} 不认识 {@code {}},
+     * 结果就是日志里原样出现 {@code 注入目标存在:{}#{}} 而参数全丢。</p>
+     *
+     * <p>这里统一把 {@code {}} 换成 {@code %s};已经全是 {@code %s} 的格式串原样返回,
+     * 混用的情况也能正确处理(按出现顺序消耗参数)。</p>
+     */
+    private static String normalize(String format) {
+        if (format.indexOf("{}") < 0) {
+            return format;
+        }
+        return format.replace("{}", "%s");
     }
 }
