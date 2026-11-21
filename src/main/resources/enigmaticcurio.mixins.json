@@ -5,23 +5,11 @@
   "compatibilityLevel": "JAVA_17",
   "refmap": "enigmaticcurio.refmap.json",
   "mixins": [
-    "RevivalLeafFlightMixin",
     "EnderChestExpansionMixin",
     "EnderChestBlockMenuMixin",
     "EnderRingLargeMenuMixin",
-    "BlessRingMixin",
-    "BlessRingBarMixin",
-    "BlessRingHelperMixin",
-    "BlessRingTickMixin",
-    "AddonThunderLightningMixin",
-    "AddonMiningMixin",
     "EnchantmentHelperSweepMixin",
-    "FourthCurseMixin",
-    "FourthCurseAddonMixin",
-    "PearlApothEnchantMixin",
-    "PearlReforgeMixin",
-    "AncientReforgeMixin",
-    "AugmentingSigilMixin"
+    "FourthCurseMixin"
   ],
   "client": [],
   "injectors": {

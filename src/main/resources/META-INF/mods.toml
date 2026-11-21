@@ -37,7 +37,7 @@ description='''
     side="BOTH"
 [[dependencies.enigmaticcurio]]
     modId="enigmaticlegacy"
-    mandatory=false
+    mandatory=true
     versionRange="[2.0,)"
     ordering="NONE"
     side="BOTH"
@@ -55,7 +55,7 @@ description='''
     side="BOTH"
 [[dependencies.enigmaticcurio]]
     modId="curios"
-    mandatory=false
+    mandatory=true
     versionRange="[5,)"
     ordering="NONE"
     side="BOTH"
@@ -63,5 +63,17 @@ description='''
     modId="apotheosis"
     mandatory=false
     versionRange="[7,)"
+    ordering="NONE"
+    side="BOTH"
+[[dependencies.enigmaticcurio]]
+    modId="ancientreforging"
+    mandatory=false
+    versionRange="[1.0,)"
+    ordering="NONE"
+    side="BOTH"
+[[dependencies.enigmaticcurio]]
+    modId="rs_integration"
+    mandatory=false
+    versionRange="[1.0,)"
     ordering="NONE"
     side="BOTH"

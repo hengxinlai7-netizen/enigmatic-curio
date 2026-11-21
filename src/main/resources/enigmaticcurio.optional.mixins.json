@@ -5,6 +5,18 @@
   "compatibilityLevel": "JAVA_17",
   "refmap": "enigmaticcurio.refmap.json",
   "mixins": [
+    "RevivalLeafFlightMixin",
+    "BlessRingMixin",
+    "BlessRingBarMixin",
+    "BlessRingHelperMixin",
+    "BlessRingTickMixin",
+    "AddonThunderLightningMixin",
+    "AddonMiningMixin",
+    "FourthCurseAddonMixin",
+    "PearlApothEnchantMixin",
+    "PearlReforgeMixin",
+    "AugmentingSigilMixin",
+    "AncientReforgeMixin",
     "ApothSocketingRecipeMixin",
     "RsiJeiInventoryEntryMixin",
     "RsiJeiInventoryPacketMixin"
