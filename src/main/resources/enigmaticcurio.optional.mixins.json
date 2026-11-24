@@ -5,6 +5,7 @@
   "compatibilityLevel": "JAVA_17",
   "refmap": "enigmaticcurio.refmap.json",
   "mixins": [
+        "AddonPunishedStateMixin",
     "RevivalLeafFlightMixin",
     "BlessRingMixin",
     "BlessRingBarMixin",

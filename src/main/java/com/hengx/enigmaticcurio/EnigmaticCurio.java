@@ -64,6 +64,8 @@ public class EnigmaticCurio {
         LightningSelfTest.register();
         // 书袋效果:服务端反射/枚举/排序自检(只在 -Denigmaticcurio.selftest=bag 时注册,正式游戏里不参与)
         BagSelfTest.register();
+        // 扩展惩罚态抑制:纯判定 + 反射冒烟自检(只在 -Denigmaticcurio.selftest=addonpunished 时注册)
+        AddonPunishedSelfTest.register();
         // 万钧之护:配置当前值(加载 / 热重载各打一条,受 debugLog 门控)
         FMLJavaModLoadingContext.get().getModEventBus().addListener(ConfigLogHandler::onLoading);
         FMLJavaModLoadingContext.get().getModEventBus().addListener(ConfigLogHandler::onReloading);

@@ -26,6 +26,7 @@ public final class CurioConfig {
     public static final ForgeConfigSpec.DoubleValue BLOODBATH_LOCK_VALUE;
     public static final ForgeConfigSpec.BooleanValue ENGINE_GUARD;
     public static final ForgeConfigSpec.BooleanValue RING_ENHANCED;
+    public static final ForgeConfigSpec.BooleanValue SUPPRESS_ADDON_PUNISHED_STATE;
     public static final ForgeConfigSpec.BooleanValue ADVENTURE_CHARM_MINING;
     public static final ForgeConfigSpec.BooleanValue ADVENTURE_CHARM_CONVERT;
     public static final ForgeConfigSpec.BooleanValue FORGER_GEM_MAX;
@@ -111,6 +112,15 @@ public final class CurioConfig {
             .define("gluttonyLock", true);
         b.pop();
 
+        b.comment("与「神秘遗物扩展」的兼容修复。").push("compat");
+        SUPPRESS_ADDON_PUNISHED_STATE = b.comment(
+                "允许「七咒之戒 + 救赎之戒」同戴时,同时抑制扩展的\"惩罚态\"判定。默认开启。",
+                "扩展在惩罚态下会每帧覆盖原版光照贴图(lightmap),在现代化 UI(ModernUI) 环境里",
+                "会导致文字/方块/实体纹理渲染异常甚至整体消失。关掉本项即为扩展原行为。",
+                "实现:把 SuperAddonHandler#isPunishedOne 的返回值抑制为 false(仅在允许同戴且两戒都在身上时)。")
+            .define("suppressAddonPunishedState", true);
+        b.pop();
+
         b.comment("已有功能").push("existing");
         MAGNET_RANGE = b.comment("磁吸戒指/超级磁吸戒指 吸取范围。默认 36。")
             .defineInRange("magnetRange", 36, 1, 64);
@@ -131,6 +141,11 @@ public final class CurioConfig {
 
     public static boolean debugLog() {
         return safe(DEBUG_LOG, false);
+    }
+
+    /** 是否抑制扩展的「惩罚态」判定(配置未加载时按默认 true)。 */
+    public static boolean suppressAddonPunishedState() {
+        return safe(SUPPRESS_ADDON_PUNISHED_STATE, true);
     }
 
     private static boolean safe(ForgeConfigSpec.BooleanValue v, boolean def) {

@@ -85,4 +85,18 @@ public final class RingHandler {
             return false;
         }
     }
+
+    /** 该实体身上(Curios 槽)是否带着七咒之戒(佩戴瞬间判定用)。 */
+    public static boolean hasCursedRing(net.minecraft.world.entity.LivingEntity entity) {
+        try {
+            if (entity == null) {
+                return false;
+            }
+            Item cursed = cursedRing();
+            return cursed != null && Superposition.hasCurio(entity, cursed);
+        }
+        catch (RuntimeException | LinkageError e) {
+            return false;
+        }
+    }
 }
